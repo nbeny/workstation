@@ -19,6 +19,20 @@
 secrets.*
 !secrets.*.example
 
+# Cles SSH et configs reseau sensibles — restaurees depuis le disque conserve,
+# jamais versionnees ici.
+id_rsa
+id_ecdsa
+id_ed25519
+id_dsa
+*_rsa
+*_ed25519
+*.ppk
+ssh/
+.ssh/
+*.wgconf
+wg*.conf
+
 # OS
 Thumbs.db
 .DS_Store

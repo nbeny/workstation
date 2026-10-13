@@ -27,8 +27,12 @@ param(
     [switch]$SkipWsl,
     [switch]$SkipKeePass,
     [switch]$SkipClone,
+    [switch]$SkipSsh,
     # Source du coffre KeePass a restaurer sur le Bureau (jamais versionne dans git).
-    [string]$KeePassSource = 'D:\Archive\KeePass\Database.kdbx'
+    [string]$KeePassSource = 'D:\Archive\KeePass\Database.kdbx',
+    # Source de la config SSH (cles + config + known_hosts) a restaurer dans ~/.ssh.
+    # JAMAIS versionnee dans git : elle vit sur le disque conserve au reset.
+    [string]$SshSource = 'D:\Archive\ssh'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -96,6 +100,9 @@ $WingetApps = [ordered]@{
     'Microsoft.WindowsTerminal'     = 'Windows Terminal'
     'Warp.Warp'                     = 'Warp'
     'GitHub.cli'                    = 'GitHub CLI'
+    '7zip.7zip'                     = '7-Zip'
+    'BlenderFoundation.Blender'     = 'Blender'
+    'Unity.UnityHub'                = 'Unity Hub'
     'DEVCOM.JetBrainsMonoNerdFont'  = 'JetBrainsMono Nerd Font'
 }
 
@@ -374,6 +381,36 @@ function Clone-Repos {
 }
 
 # ---------------------------------------------------------------------------
+# 9. SSH : restaurer ~/.ssh (cles, config d'acces serveur, known_hosts)
+# ---------------------------------------------------------------------------
+# Les cles privees et la config NE SONT PAS dans ce depot. Elles sont recopiees
+# depuis le disque conserve au reset ($SshSource), puis les permissions sont
+# verrouillees sur l'utilisateur courant. Le dossier de quarantaine COMPROMIS*
+# (anciennes cles revoquees) est explicitement ignore.
+function Restore-SshKeys {
+    Write-Step 'SSH — cles et config d''acces serveur'
+    $sshDir = Join-Path $env:USERPROFILE '.ssh'
+    if (Test-Path (Join-Path $sshDir 'id_ed25519')) {
+        Write-Skip 'cle privee deja presente dans ~/.ssh'
+        return
+    }
+    if (-not (Test-Path $SshSource)) {
+        Write-WarnL "source SSH introuvable ($SshSource) — placez-y votre sauvegarde ~/.ssh (hors COMPROMIS*)."
+        return
+    }
+    New-Item -ItemType Directory -Force -Path $sshDir | Out-Null
+    Get-ChildItem $SshSource -Force | Where-Object { $_.Name -notlike 'COMPROMIS*' } | ForEach-Object {
+        $target = Join-Path $sshDir $_.Name
+        Copy-Item $_.FullName $target -Recurse -Force
+        Write-Ok "restaure : ~/.ssh\$($_.Name)"
+    }
+    # Verrouiller les permissions : retirer l'heritage, n'autoriser que l'utilisateur.
+    icacls $sshDir /inheritance:r /grant:r "$($env:USERNAME):(OI)(CI)F" 2>&1 | Out-Null
+    Write-Ok 'permissions ~/.ssh verrouillees sur l''utilisateur'
+    Write-Host "    (la config SSH restauree porte les hotes d'acces a ton serveur)" -ForegroundColor DarkGray
+}
+
+# ---------------------------------------------------------------------------
 # Orchestration
 # ---------------------------------------------------------------------------
 Write-Host "Auto-setup machine — depot infra" -ForegroundColor Magenta
@@ -386,5 +423,6 @@ if (-not $SkipExtensions) { Set-ExtensionForcelist }                  else { Wri
 if (-not $SkipWsl)        { Invoke-KaliSetup }                        else { Write-Skip 'WSL ignore (-SkipWsl)' }
 if (-not $SkipKeePass)    { Restore-DesktopFile }                     else { Write-Skip 'restauration Bureau ignoree (-SkipKeePass)' }
 if (-not $SkipClone)      { Clone-Repos }                             else { Write-Skip 'clonage des depots ignore (-SkipClone)' }
+if (-not $SkipSsh)        { Restore-SshKeys }                         else { Write-Skip 'restauration SSH ignoree (-SkipSsh)' }
 
 Write-Host "`nTermine." -ForegroundColor Magenta

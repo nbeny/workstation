@@ -66,7 +66,9 @@ Options :
 | `-SkipWsl`       | ne pas installer/configurer Kali                    |
 | `-SkipKeePass`   | ne pas restaurer le coffre sur le Bureau            |
 | `-SkipClone`     | ne pas cloner les dépôts des onglets Warp           |
+| `-SkipSsh`       | ne pas restaurer `~/.ssh` (clés + config serveur)   |
 | `-KeePassSource` | chemin du `.kdbx` à restaurer (défaut `D:\Archive\KeePass\Database.kdbx`) |
+| `-SshSource`     | dossier `~/.ssh` à restaurer (défaut `D:\Archive\ssh`) |
 
 ### Kali / WSL (seul)
 
@@ -83,7 +85,8 @@ bash wsl/kali/setup.sh
 **Applications (winget)** : Android Studio, Claude (desktop), VS Code, **GitHub Desktop**,
 Brave, Google Chrome, Docker Desktop, **Python 3.14**, **nvm-windows**, PowerShell 7
 (+ preview), Oh My Posh, Git, Node.js (+ **npm** fourni avec), Windows Terminal, Warp,
-**GitHub CLI** (`gh`), **JetBrainsMono Nerd Font** (glyphes du prompt).
+**GitHub CLI** (`gh`), **7-Zip**, **Blender**, **Unity Hub**,
+**JetBrainsMono Nerd Font** (glyphes du prompt).
 
 **CLI globaux (npm)** : Claude Code (`@anthropic-ai/claude-code`), opencode (`opencode-ai`).
 
@@ -122,6 +125,13 @@ absents. Nécessite `gh auth login` au préalable. **CoinRich et le projet RAT s
 
 **nvm** : côté Windows via winget (nvm-windows) ; côté Kali, le script officiel nvm
 est installé par `wsl/kali/setup.sh`.
+
+**SSH + accès serveur** : `setup.ps1` restaure `~/.ssh` (clés, `config` des hôtes de
+ton serveur, `known_hosts`) depuis `D:\Archive\ssh\` s'il manque, puis verrouille les
+permissions sur ton compte. Le dossier de quarantaine `COMPROMIS*` est ignoré.
+⚠️ Les **clés privées et la config ne sont jamais versionnées** ici (exclues par
+`.gitignore`) — elles vivent sur le disque conservé au reset. Pour que la restauration
+fonctionne, place ta sauvegarde de `~/.ssh` dans `D:\Archive\ssh\` **avant** le reset.
 
 ## Sécurité
 
