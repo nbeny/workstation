@@ -92,8 +92,28 @@ set_default_shell() {
   fi
 }
 
+# ---------------------------------------------------------------------------
+# nvm (Node Version Manager) — installe via le script officiel si absent
+# ---------------------------------------------------------------------------
+NVM_VERSION="v0.40.1"
+install_nvm() {
+  say "nvm (Node Version Manager)"
+  if [ -d "$HOME/.nvm" ]; then
+    skip "nvm deja installe (~/.nvm)"
+    return
+  fi
+  if ! command -v curl >/dev/null 2>&1; then
+    echo "    curl absent — installez-le d'abord (apt)."
+    return
+  fi
+  echo "    installation de nvm $NVM_VERSION ..."
+  curl -o- "https://raw.githubusercontent.com/nvm-sh/nvm/${NVM_VERSION}/install.sh" | bash
+  ok "nvm installe (rouvrez le shell, puis: nvm install --lts)"
+}
+
 say "Auto-setup Kali Linux (WSL)"
 install_apt
 deploy_dotfiles
+install_nvm
 set_default_shell
 printf '\nTermine.\n'

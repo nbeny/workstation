@@ -65,6 +65,7 @@ Options :
 | `-SkipExtensions`| ne pas poser la policy d'extension Chromium         |
 | `-SkipWsl`       | ne pas installer/configurer Kali                    |
 | `-SkipKeePass`   | ne pas restaurer le coffre sur le Bureau            |
+| `-SkipClone`     | ne pas cloner les dépôts des onglets Warp           |
 | `-KeePassSource` | chemin du `.kdbx` à restaurer (défaut `D:\Archive\KeePass\Database.kdbx`) |
 
 ### Kali / WSL (seul)
@@ -79,9 +80,10 @@ bash wsl/kali/setup.sh
 `VirtualMachinePlatform`, règle WSL en version 2, puis installe la distribution
 `kali-linux` si absente. (Étape admin ; peut demander un redémarrage.)
 
-**Applications (winget)** : Android Studio, Claude (desktop), VS Code, Brave,
-Google Chrome, Docker Desktop, PowerShell 7 (+ preview), Oh My Posh, Git, Node.js,
-Windows Terminal, Warp, GitHub CLI, **JetBrainsMono Nerd Font** (glyphes du prompt).
+**Applications (winget)** : Android Studio, Claude (desktop), VS Code, **GitHub Desktop**,
+Brave, Google Chrome, Docker Desktop, **Python 3.14**, **nvm-windows**, PowerShell 7
+(+ preview), Oh My Posh, Git, Node.js (+ **npm** fourni avec), Windows Terminal, Warp,
+**GitHub CLI** (`gh`), **JetBrainsMono Nerd Font** (glyphes du prompt).
 
 **CLI globaux (npm)** : Claude Code (`@anthropic-ai/claude-code`), opencode (`opencode-ai`).
 
@@ -113,6 +115,13 @@ dotfiles (style de terminal Kali à deux lignes), zsh en shell par défaut.
 **Coffre KeePass** : si `Database.kdbx` n'est pas déjà sur le Bureau, il est recopié
 depuis `D:\Archive\KeePass\Database.kdbx` (disque conservé au reset).
 ⚠️ Le `.kdbx` **n'est jamais versionné dans ce dépôt** (exclu par `.gitignore`).
+
+**Clonage des dépôts** : clone les repos de tes onglets Warp (listés dans
+`windows/repos.txt`) dans `Documents\GitHub\<repo>` via `gh repo clone`, s'ils sont
+absents. Nécessite `gh auth login` au préalable. **CoinRich et le projet RAT sont exclus.**
+
+**nvm** : côté Windows via winget (nvm-windows) ; côté Kali, le script officiel nvm
+est installé par `wsl/kali/setup.sh`.
 
 ## Sécurité
 

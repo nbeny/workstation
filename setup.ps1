@@ -26,6 +26,7 @@ param(
     [switch]$SkipExtensions,
     [switch]$SkipWsl,
     [switch]$SkipKeePass,
+    [switch]$SkipClone,
     # Source du coffre KeePass a restaurer sur le Bureau (jamais versionne dans git).
     [string]$KeePassSource = 'D:\Archive\KeePass\Database.kdbx'
 )
@@ -81,9 +82,12 @@ $WingetApps = [ordered]@{
     'Google.AndroidStudio'          = 'Android Studio'
     'Anthropic.Claude'              = 'Claude (desktop)'
     'Microsoft.VisualStudioCode'    = 'VS Code'
+    'GitHub.GitHubDesktop'          = 'GitHub Desktop'
     'Brave.Brave'                   = 'Brave'
     'Google.Chrome'                 = 'Google Chrome'
     'Docker.DockerDesktop'          = 'Docker Desktop'
+    'Python.Python.3.14'            = 'Python 3.14'
+    'CoreyButler.NVMforWindows'     = 'nvm-windows'
     'Microsoft.PowerShell'          = 'PowerShell 7'
     'Microsoft.PowerShell.Preview'  = 'PowerShell 7 (preview)'
     'JanDeDobbeleer.OhMyPosh'       = 'Oh My Posh'
@@ -338,6 +342,38 @@ function Restore-DesktopFile {
 }
 
 # ---------------------------------------------------------------------------
+# 8. Cloner les depots des onglets Warp (idempotent, via gh)
+# ---------------------------------------------------------------------------
+# Lit windows/repos.txt (slugs owner/repo) et clone chacun dans
+# Documents\GitHub\<repo> s'il est absent. Necessite `gh auth login` au prealable.
+function Clone-Repos {
+    Write-Step 'Clonage des depots (onglets Warp)'
+    $listFile = "$Root\windows\repos.txt"
+    if (-not (Test-Path $listFile)) { Write-Skip 'aucune liste de depots'; return }
+    if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
+        Write-WarnL 'gh introuvable — installez GitHub CLI puis relancez.'
+        return
+    }
+    $ghStatus = (gh auth status 2>&1 | Out-String)
+    if ($ghStatus -notmatch 'Logged in') {
+        Write-WarnL 'gh non authentifie : lancez "gh auth login" puis relancez cette etape.'
+        return
+    }
+    $base = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'GitHub'
+    New-Item -ItemType Directory -Force -Path $base | Out-Null
+    foreach ($line in (Get-Content $listFile | Where-Object { $_.Trim() -and $_ -notmatch '^\s*#' })) {
+        $slug = $line.Trim()
+        $name = $slug.Split('/')[-1]
+        $dest = Join-Path $base $name
+        if (Test-Path (Join-Path $dest '.git')) { Write-Skip "$name deja clone"; continue }
+        Write-Host "    gh repo clone $slug ..." -ForegroundColor White
+        gh repo clone $slug $dest 2>&1 | Out-Null
+        if (Test-Path (Join-Path $dest '.git')) { Write-Ok "$name clone" }
+        else { Write-WarnL "$name : clonage non confirme (acces au depot ?)" }
+    }
+}
+
+# ---------------------------------------------------------------------------
 # Orchestration
 # ---------------------------------------------------------------------------
 Write-Host "Auto-setup machine — depot infra" -ForegroundColor Magenta
@@ -349,5 +385,6 @@ if (-not $SkipConfigs)    { Deploy-Configs; Set-WarpAutostart }       else { Wri
 if (-not $SkipExtensions) { Set-ExtensionForcelist }                  else { Write-Skip 'extensions ignorees (-SkipExtensions)' }
 if (-not $SkipWsl)        { Invoke-KaliSetup }                        else { Write-Skip 'WSL ignore (-SkipWsl)' }
 if (-not $SkipKeePass)    { Restore-DesktopFile }                     else { Write-Skip 'restauration Bureau ignoree (-SkipKeePass)' }
+if (-not $SkipClone)      { Clone-Repos }                             else { Write-Skip 'clonage des depots ignore (-SkipClone)' }
 
 Write-Host "`nTermine." -ForegroundColor Magenta
