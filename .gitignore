@@ -1,0 +1,23 @@
+# Sauvegardes creees par les scripts de deploiement
+*.bak
+*.bak-*
+
+# Donnees locales / caches jamais versionnees
+*.log
+*.sqlite
+*.sqlite-*
+*.sock
+
+# Secrets (ne doivent jamais etre commites)
+*.key
+*.pem
+*.pfx
+.env
+.env.*
+secrets.*
+!secrets.*.example
+
+# OS
+Thumbs.db
+.DS_Store
+desktop.ini

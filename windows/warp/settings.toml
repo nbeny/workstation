@@ -1,0 +1,179 @@
+[agents]
+cloud_conversation_storage_enabled = true
+
+[agents.warp_agent]
+is_any_ai_enabled = true
+
+[agents.warp_agent.input]
+nld_in_terminal_enabled = true
+ai_auto_detection_enabled = true
+
+[agents.warp_agent.other]
+show_conversation_history = true
+show_agent_notifications = true
+
+[agents.profiles]
+agent_mode_coding_permissions = "always_allow_reading"
+
+[agents.third_party]
+should_render_cli_agent_toolbar = true
+
+[agents.execution_profiles]
+
+[agents.execution_profiles.default]
+apply_code_diffs = "agent_decides"
+ask_user_question = "always_ask"
+autosync_plans_to_warp_drive = true
+base_model = "auto"
+command_allowlist = []
+command_denylist = [
+  'bash(\s.*)?',
+  'fish(\s.*)?',
+  'pwsh(\s.*)?',
+  'sh(\s.*)?',
+  'zsh(\s.*)?',
+  'curl(\s.*)?',
+  'eval(\s.*)?',
+  'exec(\s.*)?',
+  'source(\s.*)?',
+  'rm(\s.*)?',
+  'wget(\s.*)?',
+]
+computer_use = "never"
+directory_allowlist = []
+execute_commands = "agent_decides"
+mcp_allowlist = []
+mcp_denylist = []
+mcp_permissions = "agent_decides"
+name = "Default"
+read_files = "agent_decides"
+run_agents = "always_ask"
+web_search_enabled = true
+write_to_pty = "always_ask"
+
+[privacy]
+telemetry_enabled = true
+custom_secret_regex_list = [
+  { name = "IPv4 Address", pattern = '\b((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}\b' },
+  {
+    name = "IPv6 Address",
+    pattern = '\b((([0-9A-Fa-f]{1,4}:){1,6}:)|(([0-9A-Fa-f]{1,4}:){7}))([0-9A-Fa-f]{1,4})\b',
+  },
+  { name = "Phone Number", pattern = '\b(\+\d{1,2}\s)?\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}\b' },
+  {
+    name = "MAC Address",
+    pattern = '\b((([a-zA-z0-9]{2}[-:]){5}([a-zA-z0-9]{2}))|(([a-zA-z0-9]{2}:){5}([a-zA-z0-9]{2})))\b',
+  },
+  { name = "Google API Key", pattern = '\bAIza[0-9A-Za-z-_]{35}\b' },
+  {
+    name = "AWS Access ID",
+    pattern = '\b(AKIA|A3T|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{12,}\b',
+  },
+  { name = "Slack App Token", pattern = '\bxapp-[0-9]+-[A-Za-z0-9_]+-[0-9]+-[a-f0-9]+\b' },
+  { name = "GitHub Classic Personal Access Token", pattern = '\bghp_[A-Za-z0-9_]{36}\b' },
+  { name = "GitHub Fine-Grained Personal Access Token", pattern = '\bgithub_pat_[A-Za-z0-9_]{82}\b' },
+  { name = "GitHub OAuth Access Token", pattern = '\bgho_[A-Za-z0-9_]{36}\b' },
+  { name = "GitHub User-to-Server Token", pattern = '\bghu_[A-Za-z0-9_]{36}\b' },
+  { name = "GitHub Server-to-Server Token", pattern = '\bghs_[A-Za-z0-9_]{36}\b' },
+  { name = "Stripe Key", pattern = '\b(?:r|s)k_(test|live)_[0-9a-zA-Z]{24}\b' },
+  { name = "Firebase Auth Domain", pattern = '\b([a-z0-9-]){1,30}(\.firebaseapp\.com)\b' },
+  { name = "JWT", pattern = '\b(ey[a-zA-z0-9_\-=]{10,}\.){2}[a-zA-z0-9_\-=]{10,}\b' },
+  { name = "OpenAI API Key", pattern = '\bsk-[a-zA-Z0-9]{48}\b' },
+  { name = "Anthropic API Key", pattern = '\bsk-ant-api\d{0,2}-[a-zA-Z0-9\-]{80,120}\b' },
+  { name = "Generic SK API Key", pattern = '\bsk-[a-zA-Z0-9\-]{10,100}\b' },
+  { name = "Fireworks API Key", pattern = '\bfw_[a-zA-Z0-9]{24}\b' },
+  { name = "Warp API Key", pattern = '\bwk-[0-9]+\.[A-Fa-f0-9.\-]+\b' },
+]
+crash_reporting_enabled = true
+
+[account]
+is_settings_sync_enabled = true
+
+[global_hotkey]
+
+[global_hotkey.dedicated_window]
+enabled = false
+
+[global_hotkey.toggle_all_windows]
+keybinding = "ctrl-`"
+enabled = true
+
+[appearance]
+spacing = "normal"
+
+[appearance.vertical_tabs]
+enabled = true
+show_panel_in_restored_windows = true
+
+[appearance.themes]
+theme = "dark"
+system_theme = false
+selected_system_themes = { dark = "dark", light = "light" }
+
+[appearance.window]
+override_blur_texture = true
+open_windows_at_custom_size = false
+override_opacity = 100
+zoom_level = 110
+
+[appearance.text]
+notebook_font_size = 14.0
+font_size = 13.0
+
+[appearance.tabs]
+preserve_active_tab_color = true
+directory_tab_colors = { }
+
+[code]
+
+[code.editor]
+show_global_search = true
+show_project_explorer = true
+show_code_review_button = true
+
+[code.indexing]
+agent_mode_codebase_context_auto_indexing = true
+
+[notifications]
+toast_duration_secs = 8
+
+[notifications.preferences]
+is_agent_task_completed_enabled = true
+is_long_running_enabled = true
+is_needs_attention_enabled = true
+is_password_prompt_enabled = true
+long_running_threshold = 30
+mode = "enabled"
+play_notification_sound = true
+
+[warp_drive]
+enabled = true
+
+[terminal]
+use_audible_bell = true
+osc52_clipboard_access = "write_only"
+
+[terminal.input]
+input_box_type_setting = "universal"
+completions_open_while_typing = true
+
+[general]
+default_session_mode = "terminal"
+restore_session = false
+default_tab_config_path = 'C:\Users\\nbeny\\AppData\\Roaming\\warp\\Warp\\data\\tab_configs\\my_tab_config.toml'
+
+[general.undo_close]
+enabled = true
+grace_period = 60
+
+[session]
+
+[session.new_session_shell_override]
+executable = 'C:\Program Files\PowerShell\7-preview\pwsh.exe'
+
+[session.working_directory_config]
+advanced_mode = false
+global = { custom_dir = "", mode = "previous_dir" }
+new_tab = { custom_dir = "", mode = "previous_dir" }
+new_window = { custom_dir = "", mode = "previous_dir" }
+split_pane = { custom_dir = "", mode = "previous_dir" }
