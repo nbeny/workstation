@@ -32,25 +32,40 @@ infra/
 
 ## Utilisation
 
-### Windows
+### Après une réinstallation de Windows (procédure complète)
 
-Depuis PowerShell, à la racine du dépôt :
+Le disque **D:** (dont `D:\Archive`) est conservé au reset. Ce dépôt y vit, avec le
+coffre KeePass et les archives. Une fois Windows réinstallé :
+
+1. **PowerShell en administrateur** (nécessaire pour activer WSL) :
+   ```powershell
+   pwsh -ExecutionPolicy Bypass -File D:\Archive\infra\setup.ps1
+   ```
+2. Si le script demande un **redémarrage** (activation de WSL / Virtual Machine Platform),
+   redémarre puis **relance la même commande**.
+3. À la première installation de Kali, ouvre une fois `kali-linux` pour créer ton
+   utilisateur, puis **relance** `setup.ps1` : les dotfiles Kali se déploient alors.
+
+Le script est **rejouable** à l'infini : il vérifie l'état avant chaque action et
+n'écrase rien d'inutile (les fichiers existants sont sauvegardés en `.bak-<horodatage>`).
+
+### Usage courant
 
 ```powershell
 pwsh -ExecutionPolicy Bypass -File .\setup.ps1
 ```
 
-Le script est **rejouable** : il vérifie l'état avant chaque action et ne réinstalle
-ni n'écrase rien d'inutile (les fichiers existants sont sauvegardés en `.bak-<horodatage>`).
-
 Options :
 
-| Option           | Effet                                             |
-|------------------|---------------------------------------------------|
-| `-SkipApps`      | ne pas installer les applications (winget / npm)  |
-| `-SkipConfigs`   | ne pas déployer les profils PowerShell / Warp     |
-| `-SkipExtensions`| ne pas poser la policy d'extension Chromium       |
-| `-SkipWsl`       | ne pas lancer le setup Kali                       |
+| Option           | Effet                                               |
+|------------------|-----------------------------------------------------|
+| `-SkipFeatures`  | ne pas activer les fonctionnalités Windows (WSL…)   |
+| `-SkipApps`      | ne pas installer les applications (winget / npm)    |
+| `-SkipConfigs`   | ne pas déployer les profils + autostart Warp        |
+| `-SkipExtensions`| ne pas poser la policy d'extension Chromium         |
+| `-SkipWsl`       | ne pas installer/configurer Kali                    |
+| `-SkipKeePass`   | ne pas restaurer le coffre sur le Bureau            |
+| `-KeePassSource` | chemin du `.kdbx` à restaurer (défaut `D:\Archive\KeePass\Database.kdbx`) |
 
 ### Kali / WSL (seul)
 
@@ -58,11 +73,15 @@ Options :
 bash wsl/kali/setup.sh
 ```
 
-## Ce que `setup.ps1` installe
+## Ce que `setup.ps1` fait
+
+**Fonctionnalités Windows 11** : active WSL (`Microsoft-Windows-Subsystem-Linux`) et
+`VirtualMachinePlatform`, règle WSL en version 2, puis installe la distribution
+`kali-linux` si absente. (Étape admin ; peut demander un redémarrage.)
 
 **Applications (winget)** : Android Studio, Claude (desktop), VS Code, Brave,
-Google Chrome, Docker Desktop, PowerShell 7, Oh My Posh, Git, Node.js,
-Windows Terminal, Warp, GitHub CLI.
+Google Chrome, Docker Desktop, PowerShell 7 (+ preview), Oh My Posh, Git, Node.js,
+Windows Terminal, Warp, GitHub CLI, **JetBrainsMono Nerd Font** (glyphes du prompt).
 
 **CLI globaux (npm)** : Claude Code (`@anthropic-ai/claude-code`), opencode (`opencode-ai`).
 
@@ -86,6 +105,14 @@ config / tab configs), Windows Terminal (`settings.json`), VS Code (`settings.js
 
 **WSL/Kali** : paquets apt (zsh + syntax-highlighting + autosuggestions, git, tmux…),
 dotfiles (style de terminal Kali à deux lignes), zsh en shell par défaut.
+
+**Autostart Warp** : crée un raccourci dans le dossier Démarrage qui lance Warp avec
+`warp://launch/launch_config.yaml`, pour retrouver ta disposition de fenêtres/onglets
+à l'ouverture de session.
+
+**Coffre KeePass** : si `Database.kdbx` n'est pas déjà sur le Bureau, il est recopié
+depuis `D:\Archive\KeePass\Database.kdbx` (disque conservé au reset).
+⚠️ Le `.kdbx` **n'est jamais versionné dans ce dépôt** (exclu par `.gitignore`).
 
 ## Sécurité
 

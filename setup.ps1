@@ -20,10 +20,14 @@
 #>
 [CmdletBinding()]
 param(
+    [switch]$SkipFeatures,
     [switch]$SkipApps,
     [switch]$SkipConfigs,
     [switch]$SkipExtensions,
-    [switch]$SkipWsl
+    [switch]$SkipWsl,
+    [switch]$SkipKeePass,
+    # Source du coffre KeePass a restaurer sur le Bureau (jamais versionne dans git).
+    [string]$KeePassSource = 'D:\Archive\KeePass\Database.kdbx'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -33,6 +37,40 @@ function Write-Step  { param($m) Write-Host "`n==> $m" -ForegroundColor Cyan }
 function Write-Ok    { param($m) Write-Host "    [ok] $m" -ForegroundColor Green }
 function Write-Skip  { param($m) Write-Host "    [--] $m" -ForegroundColor DarkGray }
 function Write-WarnL { param($m) Write-Host "    [!!] $m" -ForegroundColor Yellow }
+
+function Test-IsAdmin {
+    return ([Security.Principal.WindowsPrincipal] `
+        [Security.Principal.WindowsIdentity]::GetCurrent()
+    ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
+# ---------------------------------------------------------------------------
+# 0. Fonctionnalites Windows 11 (WSL) — a faire en premier sur une machine neuve
+# ---------------------------------------------------------------------------
+function Enable-WindowsFeatures {
+    Write-Step 'Fonctionnalites Windows (WSL / Virtual Machine Platform)'
+    if (-not (Test-IsAdmin)) {
+        Write-WarnL 'droits admin requis pour activer WSL. Relancez PowerShell "en tant qu''administrateur".'
+        return
+    }
+    $features = 'Microsoft-Windows-Subsystem-Linux', 'VirtualMachinePlatform'
+    $rebootNeeded = $false
+    foreach ($f in $features) {
+        $state = (Get-WindowsOptionalFeature -Online -FeatureName $f -ErrorAction SilentlyContinue).State
+        if ($state -eq 'Enabled') { Write-Skip "$f deja active"; continue }
+        Write-Host "    activation de $f ..." -ForegroundColor White
+        $r = Enable-WindowsOptionalFeature -Online -FeatureName $f -All -NoRestart -ErrorAction Stop
+        Write-Ok "$f active"
+        if ($r.RestartNeeded) { $rebootNeeded = $true }
+    }
+    if (Get-Command wsl.exe -ErrorAction SilentlyContinue) {
+        wsl.exe --set-default-version 2 2>&1 | Out-Null
+        Write-Ok 'WSL version par defaut = 2'
+    }
+    if ($rebootNeeded) {
+        Write-WarnL 'REDEMARRAGE requis pour finir l''activation de WSL, puis relancez setup.ps1.'
+    }
+}
 
 # ---------------------------------------------------------------------------
 # 1. Applications via winget
@@ -47,12 +85,14 @@ $WingetApps = [ordered]@{
     'Google.Chrome'                 = 'Google Chrome'
     'Docker.DockerDesktop'          = 'Docker Desktop'
     'Microsoft.PowerShell'          = 'PowerShell 7'
+    'Microsoft.PowerShell.Preview'  = 'PowerShell 7 (preview)'
     'JanDeDobbeleer.OhMyPosh'       = 'Oh My Posh'
     'Git.Git'                       = 'Git'
     'OpenJS.NodeJS'                 = 'Node.js'
     'Microsoft.WindowsTerminal'     = 'Windows Terminal'
     'Warp.Warp'                     = 'Warp'
     'GitHub.cli'                    = 'GitHub CLI'
+    'DEVCOM.JetBrainsMonoNerdFont'  = 'JetBrainsMono Nerd Font'
 }
 
 function Test-WingetInstalled {
@@ -236,12 +276,15 @@ function Set-ExtensionForcelist {
 function Invoke-KaliSetup {
     Write-Step 'WSL / Kali Linux'
     if (-not (Get-Command wsl.exe -ErrorAction SilentlyContinue)) {
-        Write-WarnL 'wsl introuvable. Installez WSL (wsl --install) puis la distribution kali-linux.'
+        Write-WarnL 'wsl introuvable. Activez d''abord les fonctionnalites (setup.ps1 en admin), redemarrez, puis relancez.'
         return
     }
     $distros = (wsl.exe -l -q) -replace "`0", ''
     if ($distros -notmatch 'kali-linux') {
-        Write-WarnL "distribution kali-linux absente. Installez-la : wsl --install -d kali-linux"
+        Write-Host "    installation de la distribution kali-linux ..." -ForegroundColor White
+        wsl.exe --install -d kali-linux --no-launch 2>&1 | Out-Null
+        Write-Ok 'kali-linux installee'
+        Write-WarnL 'premiere ouverture de kali-linux requise pour creer l''utilisateur, puis relancez setup.ps1 pour les dotfiles.'
         return
     }
     # chemin du setup.sh traduit vers /mnt/<lecteur>/...
@@ -254,14 +297,57 @@ function Invoke-KaliSetup {
 }
 
 # ---------------------------------------------------------------------------
+# 6. Warp : charger launch_config.yaml au demarrage de session
+# ---------------------------------------------------------------------------
+# Reproduit le comportement deja en place : Warp est ouvert avec l'URI
+# warp://launch/launch_config.yaml a l'ouverture de session, via un raccourci
+# dans le dossier Demarrage de l'utilisateur (visible, supprimable a la main).
+function Set-WarpAutostart {
+    Write-Step 'Warp — chargement de launch_config.yaml au demarrage'
+    $warpExe = Join-Path $env:LOCALAPPDATA 'Programs\Warp\warp.exe'
+    if (-not (Test-Path $warpExe)) {
+        Write-WarnL "warp.exe introuvable ($warpExe) — relancez cette etape apres l'installation de Warp."
+        return
+    }
+    $startup = [Environment]::GetFolderPath('Startup')
+    $lnk = Join-Path $startup 'Warp (launch config).lnk'
+    if (Test-Path $lnk) { Write-Skip 'raccourci de demarrage Warp deja present'; return }
+    $wsh = New-Object -ComObject WScript.Shell
+    $sc = $wsh.CreateShortcut($lnk)
+    $sc.TargetPath = $warpExe
+    $sc.Arguments  = 'warp://launch/launch_config.yaml'
+    $sc.Save()
+    Write-Ok "raccourci cree : $lnk"
+}
+
+# ---------------------------------------------------------------------------
+# 7. Restaurer un fichier personnel sur le Bureau s'il est absent
+# ---------------------------------------------------------------------------
+# Le fichier n'est PAS dans ce depot (jamais versionne) : il est simplement
+# recopie depuis le disque d'archive conserve au reset, s'il manque au Bureau.
+function Restore-DesktopFile {
+    Write-Step 'Restauration du fichier personnel sur le Bureau'
+    $dest = Join-Path ([Environment]::GetFolderPath('Desktop')) (Split-Path $KeePassSource -Leaf)
+    if (Test-Path $dest) { Write-Skip "deja present : $dest"; return }
+    if (-not (Test-Path $KeePassSource)) {
+        Write-WarnL "source introuvable ($KeePassSource) — a recopier manuellement sur le Bureau."
+        return
+    }
+    Copy-Item $KeePassSource $dest -Force
+    Write-Ok "restaure : $dest"
+}
+
+# ---------------------------------------------------------------------------
 # Orchestration
 # ---------------------------------------------------------------------------
 Write-Host "Auto-setup machine — depot infra" -ForegroundColor Magenta
 Write-Host "Racine : $Root" -ForegroundColor DarkGray
 
+if (-not $SkipFeatures)   { Enable-WindowsFeatures }                  else { Write-Skip 'fonctionnalites Windows ignorees (-SkipFeatures)' }
 if (-not $SkipApps)       { Install-WingetApps; Install-NpmGlobals; Install-PsModules; Install-VSCodeExtensions } else { Write-Skip 'applications ignorees (-SkipApps)' }
-if (-not $SkipConfigs)    { Deploy-Configs }                          else { Write-Skip 'configs ignorees (-SkipConfigs)' }
+if (-not $SkipConfigs)    { Deploy-Configs; Set-WarpAutostart }       else { Write-Skip 'configs ignorees (-SkipConfigs)' }
 if (-not $SkipExtensions) { Set-ExtensionForcelist }                  else { Write-Skip 'extensions ignorees (-SkipExtensions)' }
 if (-not $SkipWsl)        { Invoke-KaliSetup }                        else { Write-Skip 'WSL ignore (-SkipWsl)' }
+if (-not $SkipKeePass)    { Restore-DesktopFile }                     else { Write-Skip 'restauration Bureau ignoree (-SkipKeePass)' }
 
 Write-Host "`nTermine." -ForegroundColor Magenta

@@ -12,6 +12,8 @@
 *.key
 *.pem
 *.pfx
+*.kdbx
+*.kdb
 .env
 .env.*
 secrets.*
