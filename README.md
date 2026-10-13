@@ -13,11 +13,14 @@ infra/
 │   ├── powershell/            # Profil PowerShell 7 + config
 │   │   ├── Microsoft.PowerShell_profile.ps1
 │   │   └── powershell.config.json
-│   └── warp/                  # Config du terminal Warp
-│       ├── settings.toml
-│       ├── launch_configurations/launch_config.yaml
-│       ├── tab_configs/my_tab_config.toml
-│       └── default_tab_configs/worktree.toml
+│   ├── warp/                  # Config du terminal Warp
+│   │   ├── settings.toml
+│   │   ├── launch_configurations/launch_config.yaml
+│   │   ├── tab_configs/my_tab_config.toml
+│   │   └── default_tab_configs/worktree.toml
+│   ├── windows-terminal/      # settings.json (profils, raccourcis)
+│   ├── vscode/                # settings.json, keybindings, extensions.txt
+│   └── winget-packages.json   # Export de toutes les apps winget installees
 └── wsl/
     └── kali/
         ├── setup.sh           # Installeur Kali/WSL idempotent
@@ -63,12 +66,23 @@ Windows Terminal, Warp, GitHub CLI.
 
 **CLI globaux (npm)** : Claude Code (`@anthropic-ai/claude-code`), opencode (`opencode-ai`).
 
+**Modules PowerShell (PSGallery)** : `posh-git`, `Terminal-Icons`, `z`, `DockerCompletion`,
+`npm-completion` (requis par le profil).
+
+**Extensions VS Code** : réinstallées depuis `windows/vscode/extensions.txt`.
+
 **Extension « Claude in Chrome »** : déployée via la policy `ExtensionInstallForcelist`
 sur tous les navigateurs Chromium présents (Chrome, Brave, Edge).
 ID de l'extension : `fcoeoabgfenejglbffodgkkbkcdhcgfn`.
 
-**Configs déployées** : profil + config PowerShell, `settings.toml` / launch config /
-tab configs de Warp.
+**Configs déployées** : profil + config PowerShell, config Warp (`settings.toml` / launch
+config / tab configs), Windows Terminal (`settings.json`), VS Code (`settings.json` /
+`keybindings.json`).
+
+> `windows/winget-packages.json` est un **instantané** de toutes les apps winget installées.
+> Pour tout réinstaller d'un coup sur une machine neuve :
+> `winget import -i windows/winget-packages.json --accept-package-agreements --accept-source-agreements`
+> (le `setup.ps1` se limite, lui, à la liste curée ci-dessus.)
 
 **WSL/Kali** : paquets apt (zsh + syntax-highlighting + autosuggestions, git, tmux…),
 dotfiles (style de terminal Kali à deux lignes), zsh en shell par défaut.

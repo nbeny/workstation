@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
     Auto-setup idempotent de la machine (Windows) : applications, PowerShell, Warp,
@@ -90,6 +90,9 @@ $NpmGlobals = [ordered]@{
     'opencode-ai'               = 'opencode'
 }
 
+# Modules PowerShell (PSGallery) requis par le profil.
+$PsModules = @('posh-git', 'Terminal-Icons', 'z', 'DockerCompletion', 'npm-completion')
+
 function Install-NpmGlobals {
     Write-Step 'Outils CLI globaux (npm)'
     if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
@@ -106,6 +109,36 @@ function Install-NpmGlobals {
         Write-Host "    npm i -g $pkg ..." -ForegroundColor White
         npm install -g $pkg 2>&1 | Out-Null
         Write-Ok "$name installe"
+    }
+}
+
+function Install-PsModules {
+    Write-Step 'Modules PowerShell (PSGallery)'
+    foreach ($m in $PsModules) {
+        if (Get-Module -ListAvailable -Name $m) {
+            Write-Skip "$m deja installe"
+            continue
+        }
+        Write-Host "    Install-Module $m ..." -ForegroundColor White
+        Install-Module $m -Scope CurrentUser -Force -AcceptLicense -ErrorAction Stop
+        Write-Ok "$m installe"
+    }
+}
+
+function Install-VSCodeExtensions {
+    Write-Step 'Extensions VS Code'
+    if (-not (Get-Command code -ErrorAction SilentlyContinue)) {
+        Write-WarnL 'commande "code" introuvable (VS Code pas dans le PATH ?). Rouvrez un terminal puis relancez.'
+        return
+    }
+    $listFile = "$Root\windows\vscode\extensions.txt"
+    if (-not (Test-Path $listFile)) { Write-Skip 'aucune liste d''extensions'; return }
+    $installed = (code --list-extensions 2>$null)
+    foreach ($ext in (Get-Content $listFile | Where-Object { $_.Trim() })) {
+        if ($installed -contains $ext) { Write-Skip "$ext deja installee"; continue }
+        Write-Host "    code --install-extension $ext ..." -ForegroundColor White
+        code --install-extension $ext 2>&1 | Out-Null
+        Write-Ok "$ext installee"
     }
 }
 
@@ -142,6 +175,21 @@ function Deploy-Configs {
     Copy-IfDifferent "$Root\windows\warp\launch_configurations\launch_config.yaml"        "$warpData\launch_configurations\launch_config.yaml"
     Copy-IfDifferent "$Root\windows\warp\tab_configs\my_tab_config.toml"                  "$warpData\tab_configs\my_tab_config.toml"
     Copy-IfDifferent "$Root\windows\warp\default_tab_configs\worktree.toml"               "$warpData\default_tab_configs\worktree.toml"
+
+    # Windows Terminal
+    $wtState = Join-Path $env:LOCALAPPDATA 'Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState'
+    if (Test-Path $wtState) {
+        Copy-IfDifferent "$Root\windows\windows-terminal\settings.json" "$wtState\settings.json"
+    } else {
+        Write-Skip 'Windows Terminal non installe (store) — settings non deploye'
+    }
+
+    # VS Code (settings + keybindings)
+    $vscUser = Join-Path $env:APPDATA 'Code\User'
+    Copy-IfDifferent "$Root\windows\vscode\settings.json"    "$vscUser\settings.json"
+    if (Test-Path "$Root\windows\vscode\keybindings.json") {
+        Copy-IfDifferent "$Root\windows\vscode\keybindings.json" "$vscUser\keybindings.json"
+    }
 }
 
 # ---------------------------------------------------------------------------
@@ -211,7 +259,7 @@ function Invoke-KaliSetup {
 Write-Host "Auto-setup machine — depot infra" -ForegroundColor Magenta
 Write-Host "Racine : $Root" -ForegroundColor DarkGray
 
-if (-not $SkipApps)       { Install-WingetApps; Install-NpmGlobals } else { Write-Skip 'applications ignorees (-SkipApps)' }
+if (-not $SkipApps)       { Install-WingetApps; Install-NpmGlobals; Install-PsModules; Install-VSCodeExtensions } else { Write-Skip 'applications ignorees (-SkipApps)' }
 if (-not $SkipConfigs)    { Deploy-Configs }                          else { Write-Skip 'configs ignorees (-SkipConfigs)' }
 if (-not $SkipExtensions) { Set-ExtensionForcelist }                  else { Write-Skip 'extensions ignorees (-SkipExtensions)' }
 if (-not $SkipWsl)        { Invoke-KaliSetup }                        else { Write-Skip 'WSL ignore (-SkipWsl)' }
