@@ -16,10 +16,16 @@
 [CmdletBinding()]
 param(
     [string]$Source = (Join-Path ([Environment]::GetFolderPath('MyVideos')) 'Discord'),
-    [string]$Destination = '\10.0.0.165\media\raw\discord',
+    [string]$Destination = '\\10.0.0.165\media\raw\discord',
     [int]$SettleMinutes = 2,
     [string]$LogFile = (Join-Path $env:LOCALAPPDATA 'media-sync\media-sync.log')
 )
+
+function Test-FileLocked {
+    param([string]$Path)
+    try { [IO.File]::Open($Path, 'Open', 'Read', 'None').Dispose(); return $false }
+    catch { return $true }
+}
 
 function Get-PendingRecordings {
     param(
@@ -32,8 +38,12 @@ function Get-PendingRecordings {
     foreach ($f in Get-ChildItem -LiteralPath $Source -Filter '*.mp4' -File) {
         if ($f.LastWriteTime -gt $Now.AddMinutes(-$SettleMinutes)) { continue }  # encore en cours
         $dir = Join-Path $Destination $f.LastWriteTime.ToString('yyyy-MM')
+        if (Test-FileLocked $f.FullName) { continue }  # OBS ecrit encore dedans
         $copy = Get-Item -LiteralPath (Join-Path $dir $f.Name) -ErrorAction SilentlyContinue
-        if ($copy -and $copy.Length -eq $f.Length) { continue }  # deja sur le partage
+        # Copie terminee = meme taille ET meme date (robocopy conserve la date ; /Z peut
+        # preallouer la taille finale, donc la taille seule ne prouve pas une copie complete).
+        if ($copy -and $copy.Length -eq $f.Length -and
+            [math]::Abs(($copy.LastWriteTime - $f.LastWriteTime).TotalSeconds) -le 2) { continue }
         [pscustomobject]@{ File = $f; TargetDir = $dir }
     }
 }
