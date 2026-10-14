@@ -29,6 +29,8 @@ param(
     [switch]$SkipClone,
     [switch]$SkipSsh,
     [switch]$SkipMedia,
+    # Reapplique le profil et la scene OBS du depot (ecrase l'existant, avec .bak).
+    [switch]$ResetObs,
     # Source du coffre KeePass a restaurer sur le Bureau (jamais versionne dans git).
     [string]$KeePassSource = 'D:\Archive\KeePass\Database.kdbx',
     # Source de la config SSH (cles + config + known_hosts) a restaurer dans ~/.ssh.
@@ -414,7 +416,7 @@ function Restore-SshKeys {
 }
 
 # ---------------------------------------------------------------------------
-# 11. Enregistrement Discord : OBS, partage media (M:), copie automatique
+# 10. Enregistrement Discord : OBS, partage media (M:), copie automatique
 # ---------------------------------------------------------------------------
 # Le partage est servi par la VM `media` du lab (depot infra, docs/media.md).
 # Aucun mot de passe ici : il est demande une fois et range dans le
@@ -429,7 +431,10 @@ $MediaTask    = 'media-sync'
 function Set-IniValue {
     param([string]$Path, [string]$Section, [string]$Key, [string]$Value)
     $lines = [Collections.Generic.List[string]]::new()
-    if (Test-Path -LiteralPath $Path) { $lines.AddRange([string[]](Get-Content -LiteralPath $Path -Encoding UTF8)) }
+    if (Test-Path -LiteralPath $Path) {
+        $content = @(Get-Content -LiteralPath $Path -Encoding UTF8)
+        if ($content.Count) { $lines.AddRange([string[]]$content) }
+    }
     $start = $lines.FindIndex([Predicate[string]]{ param($l) $l.Trim() -eq "[$Section]" })
     if ($start -lt 0) {
         $lines.Add("[$Section]"); $lines.Add("$Key=$Value")
@@ -449,15 +454,28 @@ function Set-IniValue {
     return $true
 }
 
-# Copie un gabarit en remplacant {{VIDEOS}}, via Copy-IfDifferent (donc .bak
-# et idempotence identiques aux autres configs).
+# Copie seulement si la cible est absente : OBS reecrit basic.ini et la scene a
+# sa fermeture, on ne veut ni ecraser ses reglages ni empiler des .bak.
+function Copy-IfMissing {
+    param([string]$Src, [string]$Dst)
+    if (Test-Path $Dst) { Write-Skip "deja present (OBS le gere) : $Dst"; return }
+    Copy-IfDifferent $Src $Dst
+}
+
+# Deploiement d'un fichier OBS : une seule fois, sauf -ResetObs (ecrase, avec .bak).
+function Copy-Obs {
+    param([string]$Src, [string]$Dst)
+    if ($ResetObs) { Copy-IfDifferent $Src $Dst } else { Copy-IfMissing $Src $Dst }
+}
+
+# Copie un gabarit en remplacant {{VIDEOS}}, via Copy-Obs.
 function Copy-Rendered {
     param([string]$Src, [string]$Dst, [hashtable]$Vars)
     $text = Get-Content -LiteralPath $Src -Raw -Encoding UTF8
     foreach ($k in $Vars.Keys) { $text = $text.Replace("{{$k}}", $Vars[$k]) }
-    $tmp = Join-Path ([IO.Path]::GetTempPath()) ("rendered-" + [IO.Path]::GetFileName($Src))
+    $tmp = Join-Path ([IO.Path]::GetTempPath()) ("rendered-" + [IO.Path]::GetRandomFileName())
     [IO.File]::WriteAllText($tmp, $text, (New-Object Text.UTF8Encoding $true))
-    Copy-IfDifferent $tmp $Dst
+    Copy-Obs $tmp $Dst
     Remove-Item $tmp -Force
 }
 
@@ -472,8 +490,8 @@ function Install-ObsConfig {
     New-Item -ItemType Directory -Force -Path $videos | Out-Null
 
     Copy-Rendered "$Root\windows\obs\profiles\Discord\basic.ini" "$obs\basic\profiles\Discord\basic.ini" @{ VIDEOS = $videos.Replace('\', '\\') }
-    Copy-IfDifferent "$Root\windows\obs\profiles\Discord\recordEncoder.json" "$obs\basic\profiles\Discord\recordEncoder.json"
-    Copy-IfDifferent "$Root\windows\obs\scenes\Discord.json" "$obs\basic\scenes\Discord.json"
+    Copy-Obs "$Root\windows\obs\profiles\Discord\recordEncoder.json" "$obs\basic\profiles\Discord\recordEncoder.json"
+    Copy-Obs "$Root\windows\obs\scenes\Discord.json" "$obs\basic\scenes\Discord.json"
 
     $userIni = Join-Path $obs 'user.ini'
     $changed = $false
@@ -503,7 +521,10 @@ function Install-MediaShare {
     if ($route) { Write-Skip "route 10.0.0.0/24 via $MediaRouter deja posee" }
     elseif (Test-IsAdmin) {
         route -p add 10.0.0.0 mask 255.255.255.0 $MediaRouter | Out-Null
-        Write-Ok "route persistante 10.0.0.0/24 via $MediaRouter"
+        $route = Get-NetRoute -DestinationPrefix '10.0.0.0/24' -ErrorAction SilentlyContinue |
+            Where-Object NextHop -eq $MediaRouter
+        if ($route) { Write-Ok "route persistante 10.0.0.0/24 via $MediaRouter" }
+        else { Write-WarnL "route 10.0.0.0/24 via $MediaRouter non posee (une autre route existe peut-etre : route print -4 10.0.0.0)" }
     } else {
         Write-WarnL "route 10.0.0.0/24 absente : relancez en administrateur (route -p add 10.0.0.0 mask 255.255.255.0 $MediaRouter)"
     }
@@ -512,19 +533,25 @@ function Install-MediaShare {
         Write-Skip 'M: deja mappe'
         return
     }
-    $hasCred = (cmdkey /list:$MediaHost | Out-String) -match [regex]::Escape($MediaHost)
+    # Sans identifiants d'abord (une session deja authentifiee suffit), sinon on demande le mot de passe.
+    $mapped = $false
     try {
-        if ($hasCred) {
-            New-SmbMapping -LocalPath 'M:' -RemotePath $MediaShare -Persistent $true -ErrorAction Stop | Out-Null
-        } else {
+        New-SmbMapping -LocalPath 'M:' -RemotePath $MediaShare -Persistent $true -ErrorAction Stop | Out-Null
+        $mapped = $true
+    } catch {
+        Write-Skip "connexion sans identifiants refusee ($($_.Exception.Message)) : mot de passe requis"
+    }
+    if (-not $mapped) {
+        try {
             $cred = Get-Credential -UserName 'nicolas' -Message "Mot de passe du partage $MediaShare (MEDIA_SMB_PASSWORD, voir docs/media.md du depot infra)"
             New-SmbMapping -LocalPath 'M:' -RemotePath $MediaShare -Persistent $true -SaveCredentials `
                 -UserName $cred.UserName -Password $cred.GetNetworkCredential().Password -ErrorAction Stop | Out-Null
+            $mapped = $true
+        } catch {
+            Write-WarnL "M: non mappe : $($_.Exception.Message) (VM media eteinte ? VPN sans 'Allow LAN' ?)"
         }
-        Write-Ok "M: -> $MediaShare (visible dans l'Explorateur a la prochaine session si setup.ps1 tourne en admin)"
-    } catch {
-        Write-WarnL "M: non mappe : $($_.Exception.Message) (VM media eteinte ? VPN sans 'Allow LAN' ?)"
     }
+    if ($mapped) { Write-Ok "M: -> $MediaShare (visible dans l'Explorateur a la prochaine session si setup.ps1 tourne en admin)" }
 }
 
 function Register-MediaSync {
@@ -537,7 +564,8 @@ function Register-MediaSync {
     # conhost --headless : aucune fenetre ne clignote toutes les 10 minutes.
     $argument = "--headless `"$pwsh`" -NoProfile -ExecutionPolicy Bypass -File `"$script`""
     $existing = Get-ScheduledTask -TaskName $MediaTask -ErrorAction SilentlyContinue
-    if ($existing -and $existing.Actions[0].Arguments -eq $argument) {
+    if ($existing -and $existing.Actions[0].Arguments -eq $argument -and
+        $existing.Triggers[0].Repetition.Interval -eq 'PT10M') {
         Write-Skip "tache $MediaTask deja en place"
         return
     }
