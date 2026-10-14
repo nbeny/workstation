@@ -1,0 +1,142 @@
+{
+  "name": "Discord",
+  "current_scene": "Discord",
+  "current_program_scene": "Discord",
+  "scene_order": [{ "name": "Discord" }],
+  "current_transition": "Fondu",
+  "transition_duration": 300,
+  "transitions": [],
+  "groups": [],
+  "quick_transitions": [],
+  "saved_projectors": [],
+  "preview_locked": false,
+  "scaling_enabled": false,
+  "modules": {},
+  "sources": [
+    {
+      "id": "window_capture",
+      "versioned_id": "window_capture",
+      "name": "Fenetre Discord",
+      "uuid": "6f1d3c2a-0b7e-4a59-9d1e-3c5a7b9e0d11",
+      "settings": {
+        "window": "Discord:Chrome_WidgetWin_1:Discord.exe",
+        "priority": 2,
+        "method": 2,
+        "cursor": true,
+        "client_area": true,
+        "capture_audio": false
+      },
+      "mixers": 0,
+      "enabled": true,
+      "muted": false,
+      "volume": 1.0,
+      "balance": 0.5,
+      "sync": 0,
+      "flags": 0,
+      "monitoring_type": 0,
+      "private_settings": {}
+    },
+    {
+      "id": "wasapi_input_capture",
+      "versioned_id": "wasapi_input_capture",
+      "name": "Micro",
+      "uuid": "6f1d3c2a-0b7e-4a59-9d1e-3c5a7b9e0d12",
+      "settings": { "device_id": "default" },
+      "mixers": 3,
+      "enabled": true,
+      "muted": false,
+      "volume": 1.0,
+      "balance": 0.5,
+      "sync": 0,
+      "flags": 0,
+      "monitoring_type": 0,
+      "private_settings": {}
+    },
+    {
+      "id": "wasapi_process_output_capture",
+      "versioned_id": "wasapi_process_output_capture",
+      "name": "Discord (participants)",
+      "uuid": "6f1d3c2a-0b7e-4a59-9d1e-3c5a7b9e0d13",
+      "settings": {
+        "window": "Discord:Chrome_WidgetWin_1:Discord.exe",
+        "priority": 2
+      },
+      "mixers": 5,
+      "enabled": true,
+      "muted": false,
+      "volume": 1.0,
+      "balance": 0.5,
+      "sync": 0,
+      "flags": 0,
+      "monitoring_type": 0,
+      "private_settings": {}
+    },
+    {
+      "id": "scene",
+      "versioned_id": "scene",
+      "name": "Discord",
+      "uuid": "6f1d3c2a-0b7e-4a59-9d1e-3c5a7b9e0d10",
+      "settings": {
+        "id_counter": 3,
+        "custom_size": false,
+        "items": [
+          {
+            "name": "Fenetre Discord",
+            "source_uuid": "6f1d3c2a-0b7e-4a59-9d1e-3c5a7b9e0d11",
+            "id": 1,
+            "visible": true,
+            "locked": false,
+            "rot": 0.0,
+            "pos": { "x": 0.0, "y": 0.0 },
+            "scale": { "x": 1.0, "y": 1.0 },
+            "align": 5,
+            "bounds_type": 2,
+            "bounds_align": 0,
+            "bounds": { "x": 1920.0, "y": 1080.0 },
+            "crop_left": 0,
+            "crop_top": 0,
+            "crop_right": 0,
+            "crop_bottom": 0,
+            "scale_filter": "disable",
+            "blend_method": "default",
+            "blend_type": "normal",
+            "private_settings": {}
+          },
+          {
+            "name": "Micro",
+            "source_uuid": "6f1d3c2a-0b7e-4a59-9d1e-3c5a7b9e0d12",
+            "id": 2,
+            "visible": true,
+            "locked": false,
+            "pos": { "x": 0.0, "y": 0.0 },
+            "scale": { "x": 1.0, "y": 1.0 },
+            "align": 5,
+            "bounds_type": 0,
+            "private_settings": {}
+          },
+          {
+            "name": "Discord (participants)",
+            "source_uuid": "6f1d3c2a-0b7e-4a59-9d1e-3c5a7b9e0d13",
+            "id": 3,
+            "visible": true,
+            "locked": false,
+            "pos": { "x": 0.0, "y": 0.0 },
+            "scale": { "x": 1.0, "y": 1.0 },
+            "align": 5,
+            "bounds_type": 0,
+            "private_settings": {}
+          }
+        ]
+      },
+      "mixers": 0,
+      "enabled": true,
+      "muted": false,
+      "volume": 1.0,
+      "balance": 0.5,
+      "sync": 0,
+      "flags": 0,
+      "monitoring_type": 0,
+      "private_settings": {}
+    }
+  ]
+}
