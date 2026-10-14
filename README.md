@@ -67,7 +67,7 @@ Options :
 | `-SkipKeePass`   | ne pas restaurer le coffre sur le Bureau            |
 | `-SkipClone`     | ne pas cloner les dépôts des onglets Warp           |
 | `-SkipSsh`       | ne pas restaurer `~/.ssh` (clés + config serveur)   |
-| `-SkipMedia`     | ne pas configurer OBS / le partage media / la tâche `media-sync` |
+| `-SkipMedia`     | ne pas configurer OBS ni les dossiers `E:\Discord-Videos` |
 | `-ResetObs`      | réappliquer le profil et la scène OBS du dépôt (écrase, avec .bak) |
 | `-KeePassSource` | chemin du `.kdbx` à restaurer (défaut `D:\Archive\KeePass\Database.kdbx`) |
 | `-SshSource`     | dossier `~/.ssh` à restaurer (défaut `D:\Archive\ssh`) |
@@ -138,8 +138,8 @@ fonctionne, place ta sauvegarde de `~/.ssh` dans `D:\Archive\ssh\` **avant** le 
 ## Enregistrement Discord
 
 OBS (profil et collection de scènes **Discord**, versionnés dans `windows/obs/`)
-enregistre la fenêtre Discord en 1080p30 (AMD AMF) dans `Videos\Discord`, au
-format hybrid MP4, avec trois pistes audio :
+enregistre la fenêtre Discord en 1080p30 (AMD AMF), au format hybrid MP4, avec
+trois pistes audio :
 
 | Piste | Contenu |
 |---|---|
@@ -147,24 +147,22 @@ format hybrid MP4, avec trois pistes audio :
 | 2 | ma voix seule (micro) |
 | 3 | les participants seuls (audio de l'application Discord) |
 
-Toutes les 10 minutes, la tâche planifiée `media-sync` copie les
-enregistrements terminés vers `\\10.0.0.165\media\raw\discord\AAAA-MM\` (VM
-`media` du lab, dépôt `infra`, `docs/media.md`). Rien n'est jamais supprimé :
-le ménage de `Videos\Discord` reste manuel. Journal :
-`%LOCALAPPDATA%\media-sync\media-sync.log`.
+Tout reste sur le PC, sur le disque **E:** :
 
-Le profil, la scène et l'encodeur OBS ne sont déployés qu'une fois (si absents) :
-OBS réécrit ces fichiers à sa fermeture, setup.ps1 ne touche plus à tes réglages.
--ResetObs force la réapplication de la version du dépôt (OBS doit être fermé).
+| Dossier | Rôle |
+|---|---|
+| `E:\Discord-Videos\raw` | enregistrements bruts d'OBS |
+| `E:\Discord-Videos\montage` | projets de montage |
+| `E:\Discord-Videos\exports` | vidéos finales (lues plus tard par un outil d'upload en un clic, depuis `video-creator`) |
 
-Le partage est monté en **M:** (`montage\`, `exports\` pour les vidéos
-finales). `setup.ps1` pose la route `10.0.0.0/24 → 192.168.1.50` (admin) et
-demande une fois le mot de passe du partage (rangé dans le Gestionnaire
-d'identifiants Windows).
+`setup.ps1` crée ces dossiers (si le lecteur E: est absent, il le signale :
+OBS ne pourra pas enregistrer) puis déploie le profil et la scène OBS **une seule
+fois** (si absents) : OBS les réécrit à sa fermeture, `setup.ps1` ne touche plus à
+tes réglages. `-ResetObs` force la réapplication de la version du dépôt (OBS doit
+être fermé).
 
-⚠️ **VPN PIA** : activer « Allow LAN Traffic », sinon le partage est
-injoignable tant que le VPN est actif.
-
+⚠️ **Aucune sauvegarde** : E: est un disque dur unique. Copie ailleurs les
+exports importants.
 ## Sécurité
 
 - Aucun token, clé, mot de passe ou historique de shell n'est versionné.

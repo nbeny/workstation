@@ -416,16 +416,10 @@ function Restore-SshKeys {
 }
 
 # ---------------------------------------------------------------------------
-# 10. Enregistrement Discord : OBS, partage media (M:), copie automatique
+# 10. Enregistrement Discord : OBS et dossiers E:\Discord-Videos
 # ---------------------------------------------------------------------------
-# Le partage est servi par la VM `media` du lab (depot infra, docs/media.md).
-# Aucun mot de passe ici : il est demande une fois et range dans le
-# Gestionnaire d'identifiants Windows.
-$MediaHost    = '10.0.0.165'
-$MediaShare   = "\\$MediaHost\media"
-$MediaRouter  = '192.168.1.50'   # MikroTik : route 10.0.0.0/24 vers le lab
-$MediaTask    = 'media-sync'
-
+# OBS enregistre directement sur E: (HDD 10 To). Rien ne quitte le PC.
+$VideoRoot = 'E:\Discord-Videos'
 # Ecrit Key=Value dans une section d'un .ini OBS. Renvoie $true si le fichier
 # a change. Encodage UTF-8 avec BOM, comme OBS.
 function Set-IniValue {
@@ -468,17 +462,6 @@ function Copy-Obs {
     if ($ResetObs) { Copy-IfDifferent $Src $Dst } else { Copy-IfMissing $Src $Dst }
 }
 
-# Copie un gabarit en remplacant {{VIDEOS}}, via Copy-Obs.
-function Copy-Rendered {
-    param([string]$Src, [string]$Dst, [hashtable]$Vars)
-    $text = Get-Content -LiteralPath $Src -Raw -Encoding UTF8
-    foreach ($k in $Vars.Keys) { $text = $text.Replace("{{$k}}", $Vars[$k]) }
-    $tmp = Join-Path ([IO.Path]::GetTempPath()) ("rendered-" + [IO.Path]::GetRandomFileName())
-    [IO.File]::WriteAllText($tmp, $text, (New-Object Text.UTF8Encoding $true))
-    Copy-Obs $tmp $Dst
-    Remove-Item $tmp -Force
-}
-
 function Install-ObsConfig {
     Write-Step 'OBS — profil et scene Discord'
     if (Get-Process obs64 -ErrorAction SilentlyContinue) {
@@ -486,10 +469,8 @@ function Install-ObsConfig {
         return
     }
     $obs    = Join-Path $env:APPDATA 'obs-studio'
-    $videos = Join-Path ([Environment]::GetFolderPath('MyVideos')) 'Discord'
-    New-Item -ItemType Directory -Force -Path $videos | Out-Null
 
-    Copy-Rendered "$Root\windows\obs\profiles\Discord\basic.ini" "$obs\basic\profiles\Discord\basic.ini" @{ VIDEOS = $videos.Replace('\', '\\') }
+    Copy-Obs "$Root\windows\obs\profiles\Discord\basic.ini" "$obs\basic\profiles\Discord\basic.ini"
     Copy-Obs "$Root\windows\obs\profiles\Discord\recordEncoder.json" "$obs\basic\profiles\Discord\recordEncoder.json"
     Copy-Obs "$Root\windows\obs\scenes\Discord.json" "$obs\basic\scenes\Discord.json"
 
@@ -513,76 +494,22 @@ function Install-ObsConfig {
     }
 }
 
-function Install-MediaShare {
-    Write-Step "Partage media ($MediaShare)"
-    # Route vers le lab : le MikroTik la relaie (regle forward LAN maison -> VMs).
-    $route = Get-NetRoute -DestinationPrefix '10.0.0.0/24' -ErrorAction SilentlyContinue |
-        Where-Object NextHop -eq $MediaRouter
-    if ($route) { Write-Skip "route 10.0.0.0/24 via $MediaRouter deja posee" }
-    elseif (Test-IsAdmin) {
-        route -p add 10.0.0.0 mask 255.255.255.0 $MediaRouter | Out-Null
-        $route = Get-NetRoute -DestinationPrefix '10.0.0.0/24' -ErrorAction SilentlyContinue |
-            Where-Object NextHop -eq $MediaRouter
-        if ($route) { Write-Ok "route persistante 10.0.0.0/24 via $MediaRouter" }
-        else { Write-WarnL "route 10.0.0.0/24 via $MediaRouter non posee (une autre route existe peut-etre : route print -4 10.0.0.0)" }
-    } else {
-        Write-WarnL "route 10.0.0.0/24 absente : relancez en administrateur (route -p add 10.0.0.0 mask 255.255.255.0 $MediaRouter)"
-    }
-
-    if (Get-SmbMapping -LocalPath 'M:' -ErrorAction SilentlyContinue) {
-        Write-Skip 'M: deja mappe'
+function Install-VideoFolders {
+    Write-Step "Dossiers video ($VideoRoot)"
+    if (-not (Test-Path 'E:\')) {
+        Write-WarnL "lecteur E: absent : $VideoRoot non cree. OBS ne pourra pas enregistrer tant que ce dossier n'existe pas."
         return
     }
-    # Sans identifiants d'abord (une session deja authentifiee suffit), sinon on demande le mot de passe.
-    $mapped = $false
-    try {
-        New-SmbMapping -LocalPath 'M:' -RemotePath $MediaShare -Persistent $true -ErrorAction Stop | Out-Null
-        $mapped = $true
-    } catch {
-        Write-Skip "connexion sans identifiants refusee ($($_.Exception.Message)) : mot de passe requis"
+    foreach ($d in 'raw', 'montage', 'exports') {
+        $p = Join-Path $VideoRoot $d
+        if (Test-Path $p) { Write-Skip "present : $p" }
+        else { New-Item -ItemType Directory -Force -Path $p | Out-Null; Write-Ok "cree : $p" }
     }
-    if (-not $mapped) {
-        try {
-            $cred = Get-Credential -UserName 'nicolas' -Message "Mot de passe du partage $MediaShare (MEDIA_SMB_PASSWORD, voir docs/media.md du depot infra)"
-            New-SmbMapping -LocalPath 'M:' -RemotePath $MediaShare -Persistent $true -SaveCredentials `
-                -UserName $cred.UserName -Password $cred.GetNetworkCredential().Password -ErrorAction Stop | Out-Null
-            $mapped = $true
-        } catch {
-            Write-WarnL "M: non mappe : $($_.Exception.Message) (VM media eteinte ? VPN sans 'Allow LAN' ?)"
-        }
-    }
-    if ($mapped) { Write-Ok "M: -> $MediaShare (visible dans l'Explorateur a la prochaine session si setup.ps1 tourne en admin)" }
-}
-
-function Register-MediaSync {
-    Write-Step "Tache planifiee $MediaTask (toutes les 10 min)"
-    $dir    = Join-Path $env:LOCALAPPDATA 'media-sync'
-    $script = Join-Path $dir 'media-sync.ps1'
-    Copy-IfDifferent "$Root\windows\obs\media-sync.ps1" $script
-    $pwsh = (Get-Command pwsh -ErrorAction SilentlyContinue).Source
-    if (-not $pwsh) { Write-WarnL 'pwsh introuvable : tache non creee'; return }
-    # conhost --headless : aucune fenetre ne clignote toutes les 10 minutes.
-    $argument = "--headless `"$pwsh`" -NoProfile -ExecutionPolicy Bypass -File `"$script`""
-    $existing = Get-ScheduledTask -TaskName $MediaTask -ErrorAction SilentlyContinue
-    if ($existing -and $existing.Actions[0].Arguments -eq $argument -and
-        $existing.Triggers[0].Repetition.Interval -eq 'PT10M') {
-        Write-Skip "tache $MediaTask deja en place"
-        return
-    }
-    $action   = New-ScheduledTaskAction -Execute 'conhost.exe' -Argument $argument
-    $trigger  = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 10)
-    $settings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -StartWhenAvailable `
-        -ExecutionTimeLimit (New-TimeSpan -Hours 2) -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
-    $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Limited
-    Register-ScheduledTask -TaskName $MediaTask -Action $action -Trigger $trigger -Settings $settings `
-        -Principal $principal -Description 'Copie les enregistrements OBS vers \\10.0.0.165\media (depot workstation)' -Force | Out-Null
-    Write-Ok "tache $MediaTask enregistree"
 }
 
 function Install-MediaSetup {
+    Install-VideoFolders
     Install-ObsConfig
-    Install-MediaShare
-    Register-MediaSync
 }
 
 # ---------------------------------------------------------------------------
