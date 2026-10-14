@@ -51,11 +51,12 @@ def main(argv=None) -> int:
     ch = sub.add_parser("character"); ch.add_argument("action", choices=["new", "prompt", "list"]); ch.add_argument("name", nargs="?")
     ch.add_argument("--outfit"); ch.add_argument("--scene", default=""); ch.add_argument("--shot", default="")
     v = sub.add_parser("verify"); v.add_argument("file"); v.add_argument("--duration", type=float)
-    sub.add_parser("saccheck", help="binaires du venv bloques par Smart App Control")
+    sp = sub.add_parser("saccheck", help="binaires du venv bloques par Smart App Control")
+    sp.add_argument("root", nargs="?", help="dossier a examiner (defaut : site-packages du venv)")
     args = ap.parse_args(argv)
     if args.cmd == "saccheck":
         from . import saccheck
-        return saccheck.main()
+        return saccheck.main(args.root)
 
     cfg = config.load()
     comfy = Comfy(cfg["url"])

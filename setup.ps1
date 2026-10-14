@@ -112,6 +112,7 @@ $WingetApps = [ordered]@{
     'DEVCOM.JetBrainsMonoNerdFont'  = 'JetBrainsMono Nerd Font'
     'OBSProject.OBSStudio'          = 'OBS Studio'
     'Gyan.FFmpeg'                   = 'FFmpeg'
+    'astral-sh.uv'                  = 'uv (venv video-ai)'
 }
 
 function Test-WingetInstalled {
@@ -419,21 +420,6 @@ function Restore-SshKeys {
 }
 
 # ---------------------------------------------------------------------------
-# 11. video-ai : ComfyUI + PyTorch ROCm (RX 6900 XT) dans un venv dedie
-# ---------------------------------------------------------------------------
-# Delegue a video-ai\scripts\install.ps1 (idempotent, n'affecte aucun autre Python).
-# Les modeles (~31 Go) ne sont telecharges qu'avec -VideoAIModels.
-function Install-VideoAI {
-    Write-Step 'video-ai (ComfyUI, PyTorch ROCm gfx103X)'
-    if (-not (Get-Command pwsh -ErrorAction SilentlyContinue)) { Write-WarnL 'pwsh introuvable — relancez apres installation de PowerShell 7.'; return }
-    if (-not (Get-Command uv -ErrorAction SilentlyContinue)) { Write-WarnL 'uv introuvable (pip install uv / winget astral-sh.uv) — etape ignoree.'; return }
-    & pwsh -NoProfile -ExecutionPolicy Bypass -File "$Root\video-ai\scripts\install.ps1"
-    if ($LASTEXITCODE) { Write-WarnL 'installation video-ai incomplete (voir les logs dans <home>\logs)'; return }
-    if ($VideoAIModels) { & pwsh -NoProfile -ExecutionPolicy Bypass -File "$Root\video-ai\scripts\download-models.ps1" }
-    else { Write-Skip 'modeles non telecharges (option -VideoAIModels, ou video-ai\scripts\download-models.ps1)' }
-}
-
-# ---------------------------------------------------------------------------
 # 10. Enregistrement Discord : OBS et dossiers E:\Discord-Videos
 # ---------------------------------------------------------------------------
 # OBS enregistre directement sur E: (HDD 10 To). Rien ne quitte le PC.
@@ -528,6 +514,25 @@ function Install-VideoFolders {
 function Install-MediaSetup {
     Install-VideoFolders
     Install-ObsConfig
+}
+
+# ---------------------------------------------------------------------------
+# 11. video-ai : ComfyUI + PyTorch ROCm (RX 6900 XT) dans un venv dedie
+# ---------------------------------------------------------------------------
+# Delegue a video-ai\scripts\install.ps1 (idempotent, n'affecte aucun autre Python).
+# Les modeles (~31 Go) ne sont telecharges qu'avec -VideoAIModels.
+function Install-VideoAI {
+    Write-Step 'video-ai (ComfyUI, PyTorch ROCm gfx103X)'
+    # uv/pwsh fraichement installes par winget ne sont pas encore dans le PATH de cette session.
+    # On complete le PATH sans le remplacer (il peut contenir des entrees propres a la session).
+    $env:Path = (@($env:Path -split ';') + ([Environment]::GetEnvironmentVariable('Path', 'Machine') -split ';') +
+                 ([Environment]::GetEnvironmentVariable('Path', 'User') -split ';') | Where-Object { $_ } | Select-Object -Unique) -join ';'
+    if (-not (Get-Command pwsh -ErrorAction SilentlyContinue)) { Write-WarnL 'pwsh introuvable — relancez apres installation de PowerShell 7.'; return }
+    if (-not (Get-Command uv -ErrorAction SilentlyContinue)) { Write-WarnL 'uv introuvable (pip install uv / winget astral-sh.uv) — etape ignoree.'; return }
+    & pwsh -NoProfile -ExecutionPolicy Bypass -File "$Root\video-ai\scripts\install.ps1"
+    if ($LASTEXITCODE) { Write-WarnL 'installation video-ai incomplete (voir les logs dans <home>\logs)'; return }
+    if ($VideoAIModels) { & pwsh -NoProfile -ExecutionPolicy Bypass -File "$Root\video-ai\scripts\download-models.ps1" }
+    else { Write-Skip 'modeles non telecharges (option -VideoAIModels, ou video-ai\scripts\download-models.ps1)' }
 }
 
 # ---------------------------------------------------------------------------

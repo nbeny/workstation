@@ -39,12 +39,12 @@ def check(root: Path) -> dict:
     return {"root": str(root), "checked": total, "blocked": blocked, "other_errors": other}
 
 
-def main() -> int:
-    root = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(sysconfig.get_paths()["purelib"])
+def main(root: str | None = None) -> int:
+    root = Path(root) if root else Path(sysconfig.get_paths()["purelib"])
     res = check(root)
     print(json.dumps(res, indent=2))
     return 1 if res["blocked"] else 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv[1] if len(sys.argv) > 1 else None))
