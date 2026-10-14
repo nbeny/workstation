@@ -28,6 +28,7 @@ param(
     [switch]$SkipKeePass,
     [switch]$SkipClone,
     [switch]$SkipSsh,
+    [switch]$SkipMedia,
     # Source du coffre KeePass a restaurer sur le Bureau (jamais versionne dans git).
     [string]$KeePassSource = 'D:\Archive\KeePass\Database.kdbx',
     # Source de la config SSH (cles + config + known_hosts) a restaurer dans ~/.ssh.
@@ -104,6 +105,8 @@ $WingetApps = [ordered]@{
     'BlenderFoundation.Blender'     = 'Blender'
     'Unity.UnityHub'                = 'Unity Hub'
     'DEVCOM.JetBrainsMonoNerdFont'  = 'JetBrainsMono Nerd Font'
+    'OBSProject.OBSStudio'          = 'OBS Studio'
+    'Gyan.FFmpeg'                   = 'FFmpeg'
 }
 
 function Test-WingetInstalled {
@@ -411,6 +414,150 @@ function Restore-SshKeys {
 }
 
 # ---------------------------------------------------------------------------
+# 11. Enregistrement Discord : OBS, partage media (M:), copie automatique
+# ---------------------------------------------------------------------------
+# Le partage est servi par la VM `media` du lab (depot infra, docs/media.md).
+# Aucun mot de passe ici : il est demande une fois et range dans le
+# Gestionnaire d'identifiants Windows.
+$MediaHost    = '10.0.0.165'
+$MediaShare   = "\\$MediaHost\media"
+$MediaRouter  = '192.168.1.50'   # MikroTik : route 10.0.0.0/24 vers le lab
+$MediaTask    = 'media-sync'
+
+# Ecrit Key=Value dans une section d'un .ini OBS. Renvoie $true si le fichier
+# a change. Encodage UTF-8 avec BOM, comme OBS.
+function Set-IniValue {
+    param([string]$Path, [string]$Section, [string]$Key, [string]$Value)
+    $lines = [Collections.Generic.List[string]]::new()
+    if (Test-Path -LiteralPath $Path) { $lines.AddRange([string[]](Get-Content -LiteralPath $Path -Encoding UTF8)) }
+    $start = $lines.FindIndex([Predicate[string]]{ param($l) $l.Trim() -eq "[$Section]" })
+    if ($start -lt 0) {
+        $lines.Add("[$Section]"); $lines.Add("$Key=$Value")
+    } else {
+        $end = $lines.FindIndex($start + 1, [Predicate[string]]{ param($l) $l.Trim() -match '^\[.+\]$' })
+        if ($end -lt 0) { $end = $lines.Count }
+        $found = $false
+        for ($i = $start + 1; $i -lt $end; $i++) {
+            if ($lines[$i] -match "^$([regex]::Escape($Key))=(.*)$") {
+                if ($Matches[1] -eq $Value) { return $false }
+                $lines[$i] = "$Key=$Value"; $found = $true; break
+            }
+        }
+        if (-not $found) { $lines.Insert($end, "$Key=$Value") }
+    }
+    [IO.File]::WriteAllLines($Path, $lines, (New-Object Text.UTF8Encoding $true))
+    return $true
+}
+
+# Copie un gabarit en remplacant {{VIDEOS}}, via Copy-IfDifferent (donc .bak
+# et idempotence identiques aux autres configs).
+function Copy-Rendered {
+    param([string]$Src, [string]$Dst, [hashtable]$Vars)
+    $text = Get-Content -LiteralPath $Src -Raw -Encoding UTF8
+    foreach ($k in $Vars.Keys) { $text = $text.Replace("{{$k}}", $Vars[$k]) }
+    $tmp = Join-Path ([IO.Path]::GetTempPath()) ("rendered-" + [IO.Path]::GetFileName($Src))
+    [IO.File]::WriteAllText($tmp, $text, (New-Object Text.UTF8Encoding $true))
+    Copy-IfDifferent $tmp $Dst
+    Remove-Item $tmp -Force
+}
+
+function Install-ObsConfig {
+    Write-Step 'OBS — profil et scene Discord'
+    if (Get-Process obs64 -ErrorAction SilentlyContinue) {
+        Write-WarnL 'OBS est ouvert : il reecrit sa config en quittant. Fermez-le puis relancez setup.ps1.'
+        return
+    }
+    $obs    = Join-Path $env:APPDATA 'obs-studio'
+    $videos = Join-Path ([Environment]::GetFolderPath('MyVideos')) 'Discord'
+    New-Item -ItemType Directory -Force -Path $videos | Out-Null
+
+    Copy-Rendered "$Root\windows\obs\profiles\Discord\basic.ini" "$obs\basic\profiles\Discord\basic.ini" @{ VIDEOS = $videos.Replace('\', '\\') }
+    Copy-IfDifferent "$Root\windows\obs\profiles\Discord\recordEncoder.json" "$obs\basic\profiles\Discord\recordEncoder.json"
+    Copy-IfDifferent "$Root\windows\obs\scenes\Discord.json" "$obs\basic\scenes\Discord.json"
+
+    $userIni = Join-Path $obs 'user.ini'
+    $changed = $false
+    foreach ($kv in @(@('Profile', 'Discord'), @('ProfileDir', 'Discord'),
+                      @('SceneCollection', 'Discord'), @('SceneCollectionFile', 'Discord.json'))) {
+        if (Set-IniValue $userIni 'Basic' $kv[0] $kv[1]) { $changed = $true }
+    }
+    if ($changed) { Write-Ok 'profil et scene Discord selectionnes (user.ini)' } else { Write-Skip 'user.ini deja a jour' }
+
+    # Rien ne pilote OBS a distance : le websocket reste coupe.
+    $ws = Join-Path $obs 'plugin_config\obs-websocket\config.json'
+    if (Test-Path $ws) {
+        $cfg = Get-Content $ws -Raw | ConvertFrom-Json
+        if ($cfg.server_enabled) {
+            $cfg.server_enabled = $false
+            $cfg | ConvertTo-Json | Set-Content $ws -Encoding UTF8
+            Write-Ok 'websocket OBS desactive'
+        } else { Write-Skip 'websocket OBS deja desactive' }
+    }
+}
+
+function Install-MediaShare {
+    Write-Step "Partage media ($MediaShare)"
+    # Route vers le lab : le MikroTik la relaie (regle forward LAN maison -> VMs).
+    $route = Get-NetRoute -DestinationPrefix '10.0.0.0/24' -ErrorAction SilentlyContinue |
+        Where-Object NextHop -eq $MediaRouter
+    if ($route) { Write-Skip "route 10.0.0.0/24 via $MediaRouter deja posee" }
+    elseif (Test-IsAdmin) {
+        route -p add 10.0.0.0 mask 255.255.255.0 $MediaRouter | Out-Null
+        Write-Ok "route persistante 10.0.0.0/24 via $MediaRouter"
+    } else {
+        Write-WarnL "route 10.0.0.0/24 absente : relancez en administrateur (route -p add 10.0.0.0 mask 255.255.255.0 $MediaRouter)"
+    }
+
+    if (Get-SmbMapping -LocalPath 'M:' -ErrorAction SilentlyContinue) {
+        Write-Skip 'M: deja mappe'
+        return
+    }
+    $hasCred = (cmdkey /list:$MediaHost | Out-String) -match [regex]::Escape($MediaHost)
+    try {
+        if ($hasCred) {
+            New-SmbMapping -LocalPath 'M:' -RemotePath $MediaShare -Persistent $true -ErrorAction Stop | Out-Null
+        } else {
+            $cred = Get-Credential -UserName 'nicolas' -Message "Mot de passe du partage $MediaShare (MEDIA_SMB_PASSWORD, voir docs/media.md du depot infra)"
+            New-SmbMapping -LocalPath 'M:' -RemotePath $MediaShare -Persistent $true -SaveCredentials `
+                -UserName $cred.UserName -Password $cred.GetNetworkCredential().Password -ErrorAction Stop | Out-Null
+        }
+        Write-Ok "M: -> $MediaShare (visible dans l'Explorateur a la prochaine session si setup.ps1 tourne en admin)"
+    } catch {
+        Write-WarnL "M: non mappe : $($_.Exception.Message) (VM media eteinte ? VPN sans 'Allow LAN' ?)"
+    }
+}
+
+function Register-MediaSync {
+    Write-Step "Tache planifiee $MediaTask (toutes les 10 min)"
+    $dir    = Join-Path $env:LOCALAPPDATA 'media-sync'
+    $script = Join-Path $dir 'media-sync.ps1'
+    Copy-IfDifferent "$Root\windows\obs\media-sync.ps1" $script
+    $pwsh = (Get-Command pwsh -ErrorAction SilentlyContinue).Source
+    if (-not $pwsh) { Write-WarnL 'pwsh introuvable : tache non creee'; return }
+    # conhost --headless : aucune fenetre ne clignote toutes les 10 minutes.
+    $argument = "--headless `"$pwsh`" -NoProfile -ExecutionPolicy Bypass -File `"$script`""
+    $existing = Get-ScheduledTask -TaskName $MediaTask -ErrorAction SilentlyContinue
+    if ($existing -and $existing.Actions[0].Arguments -eq $argument) {
+        Write-Skip "tache $MediaTask deja en place"
+        return
+    }
+    $action   = New-ScheduledTaskAction -Execute 'conhost.exe' -Argument $argument
+    $trigger  = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 10)
+    $settings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -StartWhenAvailable `
+        -ExecutionTimeLimit (New-TimeSpan -Hours 2) -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+    $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Limited
+    Register-ScheduledTask -TaskName $MediaTask -Action $action -Trigger $trigger -Settings $settings `
+        -Principal $principal -Description 'Copie les enregistrements OBS vers \\10.0.0.165\media (depot workstation)' -Force | Out-Null
+    Write-Ok "tache $MediaTask enregistree"
+}
+
+function Install-MediaSetup {
+    Install-ObsConfig
+    Install-MediaShare
+    Register-MediaSync
+}
+
+# ---------------------------------------------------------------------------
 # Orchestration
 # ---------------------------------------------------------------------------
 Write-Host "Auto-setup machine — depot infra" -ForegroundColor Magenta
@@ -424,5 +571,6 @@ if (-not $SkipWsl)        { Invoke-KaliSetup }                        else { Wri
 if (-not $SkipKeePass)    { Restore-DesktopFile }                     else { Write-Skip 'restauration Bureau ignoree (-SkipKeePass)' }
 if (-not $SkipClone)      { Clone-Repos }                             else { Write-Skip 'clonage des depots ignore (-SkipClone)' }
 if (-not $SkipSsh)        { Restore-SshKeys }                         else { Write-Skip 'restauration SSH ignoree (-SkipSsh)' }
+if (-not $SkipMedia)      { Install-MediaSetup }                      else { Write-Skip 'enregistrement Discord ignore (-SkipMedia)' }
 
 Write-Host "`nTermine." -ForegroundColor Magenta

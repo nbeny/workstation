@@ -67,6 +67,7 @@ Options :
 | `-SkipKeePass`   | ne pas restaurer le coffre sur le Bureau            |
 | `-SkipClone`     | ne pas cloner les dépôts des onglets Warp           |
 | `-SkipSsh`       | ne pas restaurer `~/.ssh` (clés + config serveur)   |
+| `-SkipMedia`     | ne pas configurer OBS / le partage media / la tâche `media-sync` |
 | `-KeePassSource` | chemin du `.kdbx` à restaurer (défaut `D:\Archive\KeePass\Database.kdbx`) |
 | `-SshSource`     | dossier `~/.ssh` à restaurer (défaut `D:\Archive\ssh`) |
 
@@ -132,6 +133,32 @@ permissions sur ton compte. Le dossier de quarantaine `COMPROMIS*` est ignoré.
 ⚠️ Les **clés privées et la config ne sont jamais versionnées** ici (exclues par
 `.gitignore`) — elles vivent sur le disque conservé au reset. Pour que la restauration
 fonctionne, place ta sauvegarde de `~/.ssh` dans `D:\Archive\ssh\` **avant** le reset.
+
+## Enregistrement Discord
+
+OBS (profil et collection de scènes **Discord**, versionnés dans `windows/obs/`)
+enregistre la fenêtre Discord en 1080p30 (AMD AMF) dans `Videos\Discord`, au
+format hybrid MP4, avec trois pistes audio :
+
+| Piste | Contenu |
+|---|---|
+| 1 | mix (micro + Discord) |
+| 2 | ma voix seule (micro) |
+| 3 | les participants seuls (audio de l'application Discord) |
+
+Toutes les 10 minutes, la tâche planifiée `media-sync` copie les
+enregistrements terminés vers `\\10.0.0.165\media\raw\discord\AAAA-MM\` (VM
+`media` du lab, dépôt `infra`, `docs/media.md`). Rien n'est jamais supprimé :
+le ménage de `Videos\Discord` reste manuel. Journal :
+`%LOCALAPPDATA%\media-sync\media-sync.log`.
+
+Le partage est monté en **M:** (`montage\`, `exports\` pour les vidéos
+finales). `setup.ps1` pose la route `10.0.0.0/24 → 192.168.1.50` (admin) et
+demande une fois le mot de passe du partage (rangé dans le Gestionnaire
+d'identifiants Windows).
+
+⚠️ **VPN PIA** : activer « Allow LAN Traffic », sinon le partage est
+injoignable tant que le VPN est actif.
 
 ## Sécurité
 
