@@ -1,0 +1,13 @@
+{
+  "description": "FLUX.2 [klein] 4B distille : texte -> image photorealiste (4 etapes, cfg 1). Base des portraits, vues et images-cles.",
+  "source": "Comfy-Org/workflow_templates image_flux2_klein_text_to_image (sous-graphe Distilled), converti au format API",
+  "params": {
+    "prompt": {"targets": [["4", "text"]], "default": "", "required": true},
+    "seed": {"targets": [["7", "noise_seed"]], "default": -1, "type": "seed"},
+    "width": {"targets": [["9", "width"], ["10", "width"]], "default": 1024},
+    "height": {"targets": [["9", "height"], ["10", "height"]], "default": 1024},
+    "steps": {"targets": [["9", "steps"]], "default": 4},
+    "batch": {"targets": [["10", "batch_size"]], "default": 1},
+    "prefix": {"targets": [["13", "filename_prefix"]], "default": "vai/flux2klein"}
+  }
+}

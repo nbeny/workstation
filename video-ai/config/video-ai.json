@@ -1,0 +1,36 @@
+{
+  "_comment": "Config versionnee de l'environnement video-ai. Surcharges locales (non versionnees) : config/local.json, ou variables VIDEO_AI_HOME / VIDEO_AI_MODELS / VIDEO_AI_PORT.",
+  "home": "E:\\video-ai",
+  "models_dir": null,
+  "host": "127.0.0.1",
+  "port": 8188,
+  "python": "3.12",
+  "comfyui": {
+    "repo": "https://github.com/comfyanonymous/ComfyUI.git",
+    "ref": "v0.40.0"
+  },
+  "torch": {
+    "_comment": "Wheels AMD TheRock pour gfx103X (RX 6800/6900) sous Windows. Nightlies : versions figees, copie locale dans <home>\\wheelhouse.",
+    "index": "https://rocm.nightlies.amd.com/v2-staging/gfx103X-dgpu/",
+    "packages": [
+      "torch==2.10.0+rocm7.13.0a20260421",
+      "torchvision==0.25.0+rocm7.13.0a20260421",
+      "torchaudio==2.10.0+rocm7.13.0a20260421"
+    ]
+  },
+  "constraints": {
+    "_comment": "Versions imposees parce que Smart App Control bloque les DLL (WinError 4551) des versions plus recentes, sans reputation. Verifier avec : vai.ps1 saccheck",
+    "packages": ["scipy==1.17.1"]
+  },
+  "comfy_args": [
+    "--use-split-cross-attention",
+    "--disable-pinned-memory",
+    "--preview-method", "none"
+  ],
+  "env": {
+    "MIOPEN_FIND_MODE": "FAST",
+    "TORCH_BLAS_PREFER_HIPBLASLT": "0",
+    "PYTHONUTF8": "1"
+  },
+  "startup_timeout_sec": 900
+}

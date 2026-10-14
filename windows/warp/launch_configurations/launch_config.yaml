@@ -99,6 +99,14 @@ windows:
             - cwd: "C:\\Users\\nbeny\\Documents\\GitHub\\agent-lab"
               pane_mode: terminal
         color: magenta
+      # video-ai : verifie le materiel, demarre ComfyUI (127.0.0.1:8188) et affiche son etat.
+      # Arret : pwsh -File .\video-ai\scripts\stop.ps1
+      - title: video-ai
+        layout:
+          cwd: "C:\\Users\\nbeny\\Documents\\GitHub\\workstation"
+          commands:
+            - exec: pwsh -NoProfile -ExecutionPolicy Bypass -File .\video-ai\scripts\start.ps1
+        color: blue
       - layout:
           cwd: "C:\\Users\\nbeny\\Documents\\GitHub"
           is_focused: true

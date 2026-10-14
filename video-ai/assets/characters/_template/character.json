@@ -1,0 +1,46 @@
+{
+  "name": "",
+  "slug": "",
+  "version": 1,
+  "fictional": true,
+  "_comment": "Fiche canonique d'un personnage FICTIF. Les champs 'canonical' ne changent pas d'une generation a l'autre : c'est l'identite. Modifier -> incrementer 'version'.",
+  "canonical": {
+    "age_appearance": "a woman in her mid-twenties",
+    "face": "oval face, high cheekbones, straight nose, full lips, light freckles across the nose",
+    "eyes": "almond-shaped hazel-green eyes, thick dark eyebrows",
+    "skin": "light olive skin with natural texture",
+    "hair": "shoulder-length wavy chestnut-brown hair with a side part",
+    "body": "slim athletic build, 1.70 m"
+  },
+  "style_prefix": "Photorealistic photograph",
+  "style_suffix": "natural skin texture, shot on 35mm, soft natural light, shallow depth of field",
+  "default_outfit": "casual",
+  "outfits": {
+    "casual": "wearing a cream knit sweater and light blue straight jeans",
+    "evening": "wearing a black satin slip dress and thin gold necklace"
+  },
+  "references": {
+    "_comment": "Images retenues comme references d'identite (dans refs/). La premiere image de refs/face sert au workflow flux2_klein_4b_ref.",
+    "face": [],
+    "profile": [],
+    "full_body": []
+  },
+  "seeds": {
+    "_comment": "Seeds ayant donne des resultats fideles, par usage (portrait, profil, pied...).",
+    "portrait": null,
+    "profile": null,
+    "full_body": null
+  },
+  "generation_defaults": {
+    "portrait": {"width": 1024, "height": 1280},
+    "full_body": {"width": 832, "height": 1472},
+    "keyframe_9x16": {"width": 704, "height": 1280},
+    "keyframe_16x9": {"width": 1280, "height": 704}
+  },
+  "lora": {
+    "_comment": "Phase ulterieure : LoRA d'identite entrainee a partir de refs/ (non automatique).",
+    "file": null,
+    "trigger": null
+  },
+  "notes": ""
+}

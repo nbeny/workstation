@@ -31,6 +31,9 @@ param(
     [switch]$SkipMedia,
     # Reapplique le profil et la scene OBS du depot (ecrase l'existant, avec .bak).
     [switch]$ResetObs,
+    [switch]$SkipVideoAI,
+    # Telecharge aussi les poids des modeles video-ai (~31 Go). Desactive par defaut.
+    [switch]$VideoAIModels,
     # Source du coffre KeePass a restaurer sur le Bureau (jamais versionne dans git).
     [string]$KeePassSource = 'D:\Archive\KeePass\Database.kdbx',
     # Source de la config SSH (cles + config + known_hosts) a restaurer dans ~/.ssh.
@@ -416,6 +419,21 @@ function Restore-SshKeys {
 }
 
 # ---------------------------------------------------------------------------
+# 11. video-ai : ComfyUI + PyTorch ROCm (RX 6900 XT) dans un venv dedie
+# ---------------------------------------------------------------------------
+# Delegue a video-ai\scripts\install.ps1 (idempotent, n'affecte aucun autre Python).
+# Les modeles (~31 Go) ne sont telecharges qu'avec -VideoAIModels.
+function Install-VideoAI {
+    Write-Step 'video-ai (ComfyUI, PyTorch ROCm gfx103X)'
+    if (-not (Get-Command pwsh -ErrorAction SilentlyContinue)) { Write-WarnL 'pwsh introuvable — relancez apres installation de PowerShell 7.'; return }
+    if (-not (Get-Command uv -ErrorAction SilentlyContinue)) { Write-WarnL 'uv introuvable (pip install uv / winget astral-sh.uv) — etape ignoree.'; return }
+    & pwsh -NoProfile -ExecutionPolicy Bypass -File "$Root\video-ai\scripts\install.ps1"
+    if ($LASTEXITCODE) { Write-WarnL 'installation video-ai incomplete (voir les logs dans <home>\logs)'; return }
+    if ($VideoAIModels) { & pwsh -NoProfile -ExecutionPolicy Bypass -File "$Root\video-ai\scripts\download-models.ps1" }
+    else { Write-Skip 'modeles non telecharges (option -VideoAIModels, ou video-ai\scripts\download-models.ps1)' }
+}
+
+# ---------------------------------------------------------------------------
 # 10. Enregistrement Discord : OBS et dossiers E:\Discord-Videos
 # ---------------------------------------------------------------------------
 # OBS enregistre directement sur E: (HDD 10 To). Rien ne quitte le PC.
@@ -527,5 +545,6 @@ if (-not $SkipKeePass)    { Restore-DesktopFile }                     else { Wri
 if (-not $SkipClone)      { Clone-Repos }                             else { Write-Skip 'clonage des depots ignore (-SkipClone)' }
 if (-not $SkipSsh)        { Restore-SshKeys }                         else { Write-Skip 'restauration SSH ignoree (-SkipSsh)' }
 if (-not $SkipMedia)      { Install-MediaSetup }                      else { Write-Skip 'enregistrement Discord ignore (-SkipMedia)' }
+if (-not $SkipVideoAI)    { Install-VideoAI }                         else { Write-Skip 'video-ai ignore (-SkipVideoAI)' }
 
 Write-Host "`nTermine." -ForegroundColor Magenta

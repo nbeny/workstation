@@ -1,0 +1,18 @@
+{
+  "description": "Wan 2.2 TI2V 5B : image -> video (24 fps). length = 4n+1 images (121 = ~5 s max). Natif 1280x704 / 704x1280 ; tests legers : 640x352, 25 images.",
+  "source": "Comfy-Org/workflow_templates video_wan2_2_5B_ti2v (LoadImage active), converti au format API",
+  "params": {
+    "prompt": {"targets": [["5", "text"]], "default": "", "required": true},
+    "negative": {"targets": [["6", "text"]], "default": null},
+    "image": {"targets": [["7", "image"]], "default": null, "type": "image", "required": true},
+    "seed": {"targets": [["9", "seed"]], "default": -1, "type": "seed"},
+    "width": {"targets": [["8", "width"]], "default": 1280},
+    "height": {"targets": [["8", "height"]], "default": 704},
+    "frames": {"targets": [["8", "length"]], "default": 121, "type": "frames"},
+    "steps": {"targets": [["9", "steps"]], "default": 20},
+    "cfg": {"targets": [["9", "cfg"]], "default": 5.0},
+    "shift": {"targets": [["4", "shift"]], "default": 8.0},
+    "fps": {"targets": [["11", "fps"]], "default": 24},
+    "prefix": {"targets": [["12", "filename_prefix"]], "default": "vai/wan22"}
+  }
+}

@@ -12,3 +12,4 @@ nbeny/wow-turtle-serveur
 nbeny/wow-urbanlink
 nbeny/wow-cli
 nbeny/agent-lab
+nbeny/workstation

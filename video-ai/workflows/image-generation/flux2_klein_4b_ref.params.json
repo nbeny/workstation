@@ -1,0 +1,13 @@
+{
+  "description": "FLUX.2 [klein] 4B distille + image de reference (ReferenceLatent) : meme personnage dans une nouvelle tenue/pose/scene. Methode de coherence d'identite native FLUX.2 (PuLID/IP-Adapter non compatibles).",
+  "source": "Comfy-Org/workflow_templates image_flux2_klein_image_edit_4b_distilled (1 reference), taille de sortie explicite, converti au format API",
+  "params": {
+    "prompt": {"targets": [["4", "text"]], "default": "", "required": true},
+    "image": {"targets": [["14", "image"]], "default": null, "type": "image", "required": true},
+    "seed": {"targets": [["7", "noise_seed"]], "default": -1, "type": "seed"},
+    "width": {"targets": [["9", "width"], ["10", "width"]], "default": 1024},
+    "height": {"targets": [["9", "height"], ["10", "height"]], "default": 1024},
+    "steps": {"targets": [["9", "steps"]], "default": 4},
+    "prefix": {"targets": [["13", "filename_prefix"]], "default": "vai/flux2klein-ref"}
+  }
+}

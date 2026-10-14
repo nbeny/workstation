@@ -37,3 +37,24 @@ wg*.conf
 Thumbs.db
 .DS_Store
 desktop.ini
+
+# video-ai : jamais de poids de modeles, de rendus ni de config locale dans Git.
+# Le runtime (ComfyUI, venv, modeles, projets) vit hors depot : E:\video-ai (VIDEO_AI_HOME).
+video-ai/config/local.json
+*.safetensors
+*.ckpt
+*.gguf
+*.pt
+*.pth
+*.onnx
+*.part
+__pycache__/
+*.pyc
+video-ai/**/*.mp4
+video-ai/**/*.mov
+video-ai/**/*.webm
+video-ai/**/*.wav
+video-ai/**/*.mp3
+video-ai/**/*.flac
+video-ai/assets/characters/*/
+!video-ai/assets/characters/_template/
