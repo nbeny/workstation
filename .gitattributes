@@ -1,0 +1,4 @@
+# Fichiers executes ou lus sous Linux (WSL/Kali) : toujours LF, meme avec
+# core.autocrlf=true sur Windows (sinon bash echoue : "pipefail\r").
+*.sh            text eol=lf
+wsl/**          text eol=lf
