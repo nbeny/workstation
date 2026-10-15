@@ -66,13 +66,17 @@ function Enable-WindowsFeatures {
     }
     $features = 'Microsoft-Windows-Subsystem-Linux', 'VirtualMachinePlatform'
     $rebootNeeded = $false
+    # CIM + dism.exe plutot que le module DISM : sous pwsh (paquet MSIX),
+    # Get-WindowsOptionalFeature echoue avec "Classe non enregistree".
     foreach ($f in $features) {
-        $state = (Get-WindowsOptionalFeature -Online -FeatureName $f -ErrorAction SilentlyContinue).State
-        if ($state -eq 'Enabled') { Write-Skip "$f deja active"; continue }
+        $state = (Get-CimInstance Win32_OptionalFeature -Filter "Name='$f'" -ErrorAction SilentlyContinue).InstallState
+        if ($state -eq 1) { Write-Skip "$f deja active"; continue }
         Write-Host "    activation de $f ..." -ForegroundColor White
-        $r = Enable-WindowsOptionalFeature -Online -FeatureName $f -All -NoRestart -ErrorAction Stop
+        dism.exe /online /enable-feature /featurename:$f /all /norestart /quiet | Out-Null
+        # 3010 = succes, redemarrage requis
+        if ($LASTEXITCODE -eq 3010) { $rebootNeeded = $true }
+        elseif ($LASTEXITCODE -ne 0) { Write-WarnL "$f : echec dism (code $LASTEXITCODE)"; continue }
         Write-Ok "$f active"
-        if ($r.RestartNeeded) { $rebootNeeded = $true }
     }
     if (Get-Command wsl.exe -ErrorAction SilentlyContinue) {
         wsl.exe --set-default-version 2 2>&1 | Out-Null
@@ -151,7 +155,8 @@ $NpmGlobals = [ordered]@{
 }
 
 # Modules PowerShell (PSGallery) requis par le profil.
-$PsModules = @('posh-git', 'Terminal-Icons', 'z', 'DockerCompletion', 'npm-completion')
+$PsModules = @('posh-git', 'Terminal-Icons', 'z', 'DockerCompletion', 'npm-completion',
+                'Microsoft.WinGet.CommandNotFound')
 
 function Install-NpmGlobals {
     Write-Step 'Outils CLI globaux (npm)'
@@ -370,8 +375,9 @@ function Clone-Repos {
         Write-WarnL 'gh introuvable — installez GitHub CLI puis relancez.'
         return
     }
-    $ghStatus = (gh auth status 2>&1 | Out-String)
-    if ($ghStatus -notmatch 'Logged in') {
+    # Code de retour plutot que le texte : "not logged into" contient aussi "logged in".
+    gh auth status 2>&1 | Out-Null
+    if ($LASTEXITCODE -ne 0) {
         Write-WarnL 'gh non authentifie : lancez "gh auth login" puis relancez cette etape.'
         return
     }
