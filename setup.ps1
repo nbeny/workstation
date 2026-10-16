@@ -28,9 +28,6 @@ param(
     [switch]$SkipKeePass,
     [switch]$SkipClone,
     [switch]$SkipSsh,
-    [switch]$SkipMedia,
-    # Reapplique le profil et la scene OBS du depot (ecrase l'existant, avec .bak).
-    [switch]$ResetObs,
     [switch]$SkipVideoAI,
     # Telecharge aussi les poids des modeles video-ai (~31 Go). Desactive par defaut.
     [switch]$VideoAIModels,
@@ -114,7 +111,6 @@ $WingetApps = [ordered]@{
     'BlenderFoundation.Blender'     = 'Blender'
     'Unity.UnityHub'                = 'Unity Hub'
     'DEVCOM.JetBrainsMonoNerdFont'  = 'JetBrainsMono Nerd Font'
-    'OBSProject.OBSStudio'          = 'OBS Studio'
     'Gyan.FFmpeg'                   = 'FFmpeg'
     'astral-sh.uv'                  = 'uv (venv video-ai)'
 }
@@ -426,104 +422,7 @@ function Restore-SshKeys {
 }
 
 # ---------------------------------------------------------------------------
-# 10. Enregistrement Discord : OBS et dossiers E:\Discord-Videos
-# ---------------------------------------------------------------------------
-# OBS enregistre directement sur E: (HDD 10 To). Rien ne quitte le PC.
-$VideoRoot = 'E:\Discord-Videos'
-# Ecrit Key=Value dans une section d'un .ini OBS. Renvoie $true si le fichier
-# a change. Encodage UTF-8 avec BOM, comme OBS.
-function Set-IniValue {
-    param([string]$Path, [string]$Section, [string]$Key, [string]$Value)
-    $lines = [Collections.Generic.List[string]]::new()
-    if (Test-Path -LiteralPath $Path) {
-        $content = @(Get-Content -LiteralPath $Path -Encoding UTF8)
-        if ($content.Count) { $lines.AddRange([string[]]$content) }
-    }
-    $start = $lines.FindIndex([Predicate[string]]{ param($l) $l.Trim() -eq "[$Section]" })
-    if ($start -lt 0) {
-        $lines.Add("[$Section]"); $lines.Add("$Key=$Value")
-    } else {
-        $end = $lines.FindIndex($start + 1, [Predicate[string]]{ param($l) $l.Trim() -match '^\[.+\]$' })
-        if ($end -lt 0) { $end = $lines.Count }
-        $found = $false
-        for ($i = $start + 1; $i -lt $end; $i++) {
-            if ($lines[$i] -match "^$([regex]::Escape($Key))=(.*)$") {
-                if ($Matches[1] -eq $Value) { return $false }
-                $lines[$i] = "$Key=$Value"; $found = $true; break
-            }
-        }
-        if (-not $found) { $lines.Insert($end, "$Key=$Value") }
-    }
-    [IO.File]::WriteAllLines($Path, $lines, (New-Object Text.UTF8Encoding $true))
-    return $true
-}
-
-# Copie seulement si la cible est absente : OBS reecrit basic.ini et la scene a
-# sa fermeture, on ne veut ni ecraser ses reglages ni empiler des .bak.
-function Copy-IfMissing {
-    param([string]$Src, [string]$Dst)
-    if (Test-Path $Dst) { Write-Skip "deja present (OBS le gere) : $Dst"; return }
-    Copy-IfDifferent $Src $Dst
-}
-
-# Deploiement d'un fichier OBS : une seule fois, sauf -ResetObs (ecrase, avec .bak).
-function Copy-Obs {
-    param([string]$Src, [string]$Dst)
-    if ($ResetObs) { Copy-IfDifferent $Src $Dst } else { Copy-IfMissing $Src $Dst }
-}
-
-function Install-ObsConfig {
-    Write-Step 'OBS — profil et scene Discord'
-    if (Get-Process obs64 -ErrorAction SilentlyContinue) {
-        Write-WarnL 'OBS est ouvert : il reecrit sa config en quittant. Fermez-le puis relancez setup.ps1.'
-        return
-    }
-    $obs    = Join-Path $env:APPDATA 'obs-studio'
-
-    Copy-Obs "$Root\windows\obs\profiles\Discord\basic.ini" "$obs\basic\profiles\Discord\basic.ini"
-    Copy-Obs "$Root\windows\obs\profiles\Discord\recordEncoder.json" "$obs\basic\profiles\Discord\recordEncoder.json"
-    Copy-Obs "$Root\windows\obs\scenes\Discord.json" "$obs\basic\scenes\Discord.json"
-
-    $userIni = Join-Path $obs 'user.ini'
-    $changed = $false
-    foreach ($kv in @(@('Profile', 'Discord'), @('ProfileDir', 'Discord'),
-                      @('SceneCollection', 'Discord'), @('SceneCollectionFile', 'Discord.json'))) {
-        if (Set-IniValue $userIni 'Basic' $kv[0] $kv[1]) { $changed = $true }
-    }
-    if ($changed) { Write-Ok 'profil et scene Discord selectionnes (user.ini)' } else { Write-Skip 'user.ini deja a jour' }
-
-    # Rien ne pilote OBS a distance : le websocket reste coupe.
-    $ws = Join-Path $obs 'plugin_config\obs-websocket\config.json'
-    if (Test-Path $ws) {
-        $cfg = Get-Content $ws -Raw | ConvertFrom-Json
-        if ($cfg.server_enabled) {
-            $cfg.server_enabled = $false
-            $cfg | ConvertTo-Json | Set-Content $ws -Encoding UTF8
-            Write-Ok 'websocket OBS desactive'
-        } else { Write-Skip 'websocket OBS deja desactive' }
-    }
-}
-
-function Install-VideoFolders {
-    Write-Step "Dossiers video ($VideoRoot)"
-    if (-not (Test-Path 'E:\')) {
-        Write-WarnL "lecteur E: absent : $VideoRoot non cree. OBS ne pourra pas enregistrer tant que ce dossier n'existe pas."
-        return
-    }
-    foreach ($d in 'raw', 'montage', 'exports') {
-        $p = Join-Path $VideoRoot $d
-        if (Test-Path $p) { Write-Skip "present : $p" }
-        else { New-Item -ItemType Directory -Force -Path $p | Out-Null; Write-Ok "cree : $p" }
-    }
-}
-
-function Install-MediaSetup {
-    Install-VideoFolders
-    Install-ObsConfig
-}
-
-# ---------------------------------------------------------------------------
-# 11. video-ai : ComfyUI + PyTorch ROCm (RX 6900 XT) dans un venv dedie
+# 10. video-ai : ComfyUI + PyTorch ROCm (RX 6900 XT) dans un venv dedie
 # ---------------------------------------------------------------------------
 # Delegue a video-ai\scripts\install.ps1 (idempotent, n'affecte aucun autre Python).
 # Les modeles (~31 Go) ne sont telecharges qu'avec -VideoAIModels.
@@ -555,7 +454,6 @@ if (-not $SkipWsl)        { Invoke-KaliSetup }                        else { Wri
 if (-not $SkipKeePass)    { Restore-DesktopFile }                     else { Write-Skip 'restauration Bureau ignoree (-SkipKeePass)' }
 if (-not $SkipClone)      { Clone-Repos }                             else { Write-Skip 'clonage des depots ignore (-SkipClone)' }
 if (-not $SkipSsh)        { Restore-SshKeys }                         else { Write-Skip 'restauration SSH ignoree (-SkipSsh)' }
-if (-not $SkipMedia)      { Install-MediaSetup }                      else { Write-Skip 'enregistrement Discord ignore (-SkipMedia)' }
 if (-not $SkipVideoAI)    { Install-VideoAI }                         else { Write-Skip 'video-ai ignore (-SkipVideoAI)' }
 
 Write-Host "`nTermine." -ForegroundColor Magenta

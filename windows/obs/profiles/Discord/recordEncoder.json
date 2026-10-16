@@ -1,7 +1,0 @@
-{
-  "rate_control": "CQP",
-  "cqp": 20,
-  "preset": "quality",
-  "profile": "high",
-  "keyint_sec": 2
-}

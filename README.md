@@ -67,8 +67,6 @@ Options :
 | `-SkipKeePass`   | ne pas restaurer le coffre sur le Bureau            |
 | `-SkipClone`     | ne pas cloner les dépôts des onglets Warp           |
 | `-SkipSsh`       | ne pas restaurer `~/.ssh` (clés + config serveur)   |
-| `-SkipMedia`     | ne pas configurer OBS ni les dossiers `E:\Discord-Videos` |
-| `-ResetObs`      | réappliquer le profil et la scène OBS du dépôt (écrase, avec .bak) |
 | `-KeePassSource` | chemin du `.kdbx` à restaurer (défaut `D:\Archive\KeePass\Database.kdbx`) |
 | `-SshSource`     | dossier `~/.ssh` à restaurer (défaut `D:\Archive\ssh`) |
 
@@ -135,34 +133,6 @@ permissions sur ton compte. Le dossier de quarantaine `COMPROMIS*` est ignoré.
 `.gitignore`) — elles vivent sur le disque conservé au reset. Pour que la restauration
 fonctionne, place ta sauvegarde de `~/.ssh` dans `D:\Archive\ssh\` **avant** le reset.
 
-## Enregistrement Discord
-
-OBS (profil et collection de scènes **Discord**, versionnés dans `windows/obs/`)
-enregistre la fenêtre Discord en 1080p30 (AMD AMF), au format hybrid MP4, avec
-trois pistes audio :
-
-| Piste | Contenu |
-|---|---|
-| 1 | mix (micro + Discord) |
-| 2 | ma voix seule (micro) |
-| 3 | les participants seuls (audio de l'application Discord) |
-
-Tout reste sur le PC, sur le disque **E:** :
-
-| Dossier | Rôle |
-|---|---|
-| `E:\Discord-Videos\raw` | enregistrements bruts d'OBS |
-| `E:\Discord-Videos\montage` | projets de montage |
-| `E:\Discord-Videos\exports` | vidéos finales (lues plus tard par un outil d'upload en un clic, depuis `video-creator`) |
-
-`setup.ps1` crée ces dossiers (si le lecteur E: est absent, il le signale :
-OBS ne pourra pas enregistrer) puis déploie le profil et la scène OBS **une seule
-fois** (si absents) : OBS les réécrit à sa fermeture, `setup.ps1` ne touche plus à
-tes réglages. `-ResetObs` force la réapplication de la version du dépôt (OBS doit
-être fermé).
-
-⚠️ **Aucune sauvegarde** : E: est un disque dur unique. Copie ailleurs les
-exports importants.
 ## Sécurité
 
 - Aucun token, clé, mot de passe ou historique de shell n'est versionné.
