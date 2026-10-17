@@ -103,6 +103,18 @@ où ça s'est arrêté.
   Après chaque changement du venv : `.\video-ai\vai.ps1 saccheck`, et épingler une version plus ancienne
   dans `config/video-ai.json` → `constraints` si besoin. Ne rien exécuter depuis `%TEMP%`.
 
+## audio-ai — stems, BPM/tonalité, mastering (détails : `audio-ai/README.md`)
+
+- `audio-ai/` (versionné) : `audio_pipeline.py` (CLI), `mcp_server.py` (serveur MCP stdio), `scripts/install.ps1`,
+  `config/`. Runtime hors Git : `E:\audio-ai\` = `AUDIO_AI_HOME` (`venv\`, `models\torch`, `projects\`, `logs\`, `cache\miopen`).
+- Même build PyTorch ROCm que video-ai (lu dans `video-ai/config/video-ai.json`, wheelhouse partagé). **Pas de
+  torch-directml** (pas de STFT complexe, PyTorch ancien) ni de WSL2+ROCm (RDNA2 non pris en charge).
+- `setup.ps1` étape 11 (`-SkipAudioAI`, `-AudioAIRoformer`) → `audio-ai\scripts\install.ps1`, qui enregistre aussi
+  le serveur MCP `audio-ai` dans Claude Desktop (sauvegarde `.bak-*`) et Claude Code.
+- `.\audio-ai\aai.ps1 gpu | analyze | separate | process | mix | selftest --with-model`. Chaque rendu écrit un
+  `*.job.json` (device, pic VRAM, LUFS et true peak **mesurés sur le fichier écrit**).
+- Pas de repli CPU silencieux. Ne pas lancer de séparation pendant un rendu Wan (VRAM).
+
 ## Opérations soumises à l'accord de l'utilisateur
 
 Suppression ou écrasement de fichiers, modèles ou workflows existants ; mise à jour du driver AMD, de

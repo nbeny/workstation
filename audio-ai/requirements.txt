@@ -1,0 +1,8 @@
+# Dependances audio-ai (hors PyTorch : torch/torchaudio viennent du build ROCm de video-ai, verrouilles).
+# Versions exactes installees : config/requirements.lock.txt (genere par scripts/install.ps1).
+demucs==4.0.1          # separation Demucs v4 (htdemucs, htdemucs_ft, htdemucs_6s)
+librosa>=0.10.2        # BPM (beat tracking), chroma CQT pour la tonalite
+soundfile>=0.12.1      # lecture/ecriture WAV float32 et PCM 24 bits (libsndfile)
+pyloudnorm>=0.1.1      # loudness integree ITU-R BS.1770-4
+scipy                  # sur-echantillonnage true peak, filtres du limiteur (version epinglee par video-ai)
+mcp>=1.2.0,<2          # serveur MCP (FastMCP, stdio) ; mcp 2.x renomme FastMCP en MCPServer

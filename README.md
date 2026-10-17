@@ -9,6 +9,7 @@ Aucun secret n'y est stocké.
 ```
 infra/
 ├── setup.ps1                  # Installeur Windows idempotent (point d'entrée)
+├── audio-ai/                  # Stems Demucs v4 sur GPU AMD, BPM/tonalité, mastering LUFS, serveur MCP
 ├── windows/
 │   ├── powershell/            # Profil PowerShell 7 + config
 │   │   ├── Microsoft.PowerShell_profile.ps1
@@ -67,6 +68,8 @@ Options :
 | `-SkipKeePass`   | ne pas restaurer le coffre sur le Bureau            |
 | `-SkipClone`     | ne pas cloner les dépôts des onglets Warp           |
 | `-SkipSsh`       | ne pas restaurer `~/.ssh` (clés + config serveur)   |
+| `-SkipAudioAI`   | ne pas installer audio-ai (stems, mastering, MCP)   |
+| `-AudioAIRoformer` | ajouter BS-Roformer à audio-ai                    |
 | `-KeePassSource` | chemin du `.kdbx` à restaurer (défaut `D:\Archive\KeePass\Database.kdbx`) |
 | `-SshSource`     | dossier `~/.ssh` à restaurer (défaut `D:\Archive\ssh`) |
 

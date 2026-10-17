@@ -1,0 +1,2 @@
+# Optionnel (install.ps1 -WithRoformer) : BS-Roformer / Mel-Roformer via python-audio-separator.
+audio-separator>=0.30

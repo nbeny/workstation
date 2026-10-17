@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "audio-ai": {
+      "command": "E:\\audio-ai\\venv\\Scripts\\python.exe",
+      "args": ["C:\\Users\\<utilisateur>\\Documents\\GitHub\\workstation\\audio-ai\\mcp_server.py"],
+      "env": {
+        "AUDIO_AI_HOME": "E:\\audio-ai",
+        "FFMPEG": "C:\\chemin\\vers\\ffmpeg.exe",
+        "PYTHONUTF8": "1",
+        "MIOPEN_FIND_MODE": "FAST",
+        "TORCH_BLAS_PREFER_HIPBLASLT": "0"
+      }
+    }
+  }
+}

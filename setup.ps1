@@ -31,6 +31,9 @@ param(
     [switch]$SkipVideoAI,
     # Telecharge aussi les poids des modeles video-ai (~31 Go). Desactive par defaut.
     [switch]$VideoAIModels,
+    [switch]$SkipAudioAI,
+    # Ajoute BS-Roformer (python-audio-separator) a audio-ai. Desactive par defaut.
+    [switch]$AudioAIRoformer,
     # Source du coffre KeePass a restaurer sur le Bureau (jamais versionne dans git).
     [string]$KeePassSource = 'D:\Archive\KeePass\Database.kdbx',
     # Source de la config SSH (cles + config + known_hosts) a restaurer dans ~/.ssh.
@@ -441,6 +444,23 @@ function Install-VideoAI {
 }
 
 # ---------------------------------------------------------------------------
+# 11. audio-ai : separation de stems (Demucs v4), BPM/tonalite, mastering LUFS, serveur MCP
+# ---------------------------------------------------------------------------
+# Delegue a audio-ai\scripts\install.ps1 (idempotent, venv dedie E:\audio-ai). Reprend le build
+# PyTorch ROCm et le wheelhouse de video-ai, puis enregistre le serveur MCP dans Claude Desktop.
+function Install-AudioAI {
+    Write-Step 'audio-ai (Demucs v4 sur GPU AMD, mastering, serveur MCP)'
+    $env:Path = (@($env:Path -split ';') + ([Environment]::GetEnvironmentVariable('Path', 'Machine') -split ';') +
+                 ([Environment]::GetEnvironmentVariable('Path', 'User') -split ';') | Where-Object { $_ } | Select-Object -Unique) -join ';'
+    foreach ($t in 'pwsh','uv','ffmpeg') {
+        if (-not (Get-Command $t -ErrorAction SilentlyContinue)) { Write-WarnL "$t introuvable — etape audio-ai ignoree."; return }
+    }
+    $extra = @(); if ($AudioAIRoformer) { $extra += '-WithRoformer' }
+    & pwsh -NoProfile -ExecutionPolicy Bypass -File "$Root\audio-ai\scripts\install.ps1" @extra
+    if ($LASTEXITCODE) { Write-WarnL 'installation audio-ai incomplete (voir E:\audio-ai\logs)' }
+}
+
+# ---------------------------------------------------------------------------
 # Orchestration
 # ---------------------------------------------------------------------------
 Write-Host "Auto-setup machine — depot infra" -ForegroundColor Magenta
@@ -455,5 +475,6 @@ if (-not $SkipKeePass)    { Restore-DesktopFile }                     else { Wri
 if (-not $SkipClone)      { Clone-Repos }                             else { Write-Skip 'clonage des depots ignore (-SkipClone)' }
 if (-not $SkipSsh)        { Restore-SshKeys }                         else { Write-Skip 'restauration SSH ignoree (-SkipSsh)' }
 if (-not $SkipVideoAI)    { Install-VideoAI }                         else { Write-Skip 'video-ai ignore (-SkipVideoAI)' }
+if (-not $SkipAudioAI)    { Install-AudioAI }                         else { Write-Skip 'audio-ai ignore (-SkipAudioAI)' }
 
 Write-Host "`nTermine." -ForegroundColor Magenta

@@ -1,0 +1,12 @@
+{
+  "_comment": "Config versionnee d'audio-ai. PyTorch (build ROCm gfx103X) et son wheelhouse sont repris de video-ai/config/video-ai.json pour n'avoir qu'un seul build AMD a maintenir. Surcharge du dossier : variable AUDIO_AI_HOME.",
+  "home": "E:\\audio-ai",
+  "python": "3.12",
+  "default_model": "htdemucs_ft",
+  "selftest_model": "htdemucs",
+  "env": {
+    "MIOPEN_FIND_MODE": "FAST",
+    "TORCH_BLAS_PREFER_HIPBLASLT": "0",
+    "PYTHONUTF8": "1"
+  }
+}
