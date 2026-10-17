@@ -164,8 +164,12 @@ if (-not $NoMcp) {
         $envs = if ($e.env) { ($e.env.Keys | Sort-Object | ForEach-Object { "$_=$($e.env[$_])" }) -join ';' } else { '' }
         return "$($e.command)|$(@($e.args) -join ' ')|$envs"
     }
-    # Claude Desktop : installation MSIX (dossier virtualise) ou classique (%APPDATA%\Claude).
-    $dirs = @(Get-ChildItem "$env:LOCALAPPDATA\Packages" -Directory -Filter 'Claude_*' -ErrorAction SilentlyContinue |
+    # Claude Desktop, par ordre de priorite : donnees hors paquet des versions MSIX recentes
+    # (%LOCALAPPDATA%\Claude-Data\claude_<id>, signale par .user-data-left.* dans l'ancien dossier),
+    # puis dossier MSIX virtualise, puis installation classique (%APPDATA%\Claude).
+    $dirs = @(Get-ChildItem "$env:LOCALAPPDATA\Claude-Data" -Directory -Filter 'claude_*' -ErrorAction SilentlyContinue |
+              ForEach-Object FullName) +
+            @(Get-ChildItem "$env:LOCALAPPDATA\Packages" -Directory -Filter 'Claude_*' -ErrorAction SilentlyContinue |
               ForEach-Object { Join-Path $_.FullName 'LocalCache\Roaming\Claude' }) + @(Join-Path $env:APPDATA 'Claude')
     $dir = ($dirs | Where-Object { Test-Path -LiteralPath (Join-Path $_ 'claude_desktop_config.json') } | Select-Object -First 1)
     if (-not $dir) { $dir = $dirs | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1 }
