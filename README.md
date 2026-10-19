@@ -9,6 +9,7 @@ Aucun secret n'y est stocké.
 ```
 infra/
 ├── setup.ps1                  # Installeur Windows idempotent (point d'entrée)
+├── video-ai/                  # Production IA vidéo locale : ComfyUI sur RX 6900 XT, CLI vai
 ├── audio-ai/                  # Stems Demucs v4 sur GPU AMD, BPM/tonalité, mastering LUFS, serveur MCP
 ├── windows/
 │   ├── powershell/            # Profil PowerShell 7 + config
@@ -68,6 +69,8 @@ Options :
 | `-SkipKeePass`   | ne pas restaurer le coffre sur le Bureau            |
 | `-SkipClone`     | ne pas cloner les dépôts des onglets Warp           |
 | `-SkipSsh`       | ne pas restaurer `~/.ssh` (clés + config serveur)   |
+| `-SkipVideoAI`   | ne pas installer video-ai (ComfyUI + venv)          |
+| `-VideoAIModels` | télécharger aussi les modèles video-ai (~31 Go)     |
 | `-SkipAudioAI`   | ne pas installer audio-ai (stems, mastering, MCP)   |
 | `-AudioAIRoformer` | ajouter BS-Roformer à audio-ai                    |
 | `-KeePassSource` | chemin du `.kdbx` à restaurer (défaut `D:\Archive\KeePass\Database.kdbx`) |
@@ -135,6 +138,19 @@ permissions sur ton compte. Le dossier de quarantaine `COMPROMIS*` est ignoré.
 ⚠️ Les **clés privées et la config ne sont jamais versionnées** ici (exclues par
 `.gitignore`) — elles vivent sur le disque conservé au reset. Pour que la restauration
 fonctionne, place ta sauvegarde de `~/.ssh` dans `D:\Archive\ssh\` **avant** le reset.
+
+**video-ai** : installe ComfyUI et PyTorch ROCm (gfx103X) dans un venv dédié sous
+`E:\video-ai`, via `video-ai\scripts\install.ps1`. Les modèles (~31 Go) ne sont
+téléchargés qu'avec `-VideoAIModels`. Démarrage : onglet Warp `video-ai`, ou
+`pwsh -File video-ai\scripts\start.ps1`. Usage : `video-ai/README.md`.
+
+**audio-ai** : séparation de stems, BPM/tonalité et mastering dans un venv dédié sous
+`E:\audio-ai`, via `audio-ai\scripts\install.ps1`. Il réutilise le build PyTorch et le
+wheelhouse de video-ai : installer video-ai d'abord. Il enregistre aussi le serveur MCP
+`audio-ai` dans Claude. Usage : `audio-ai/README.md`.
+
+⚠️ Les deux partagent la carte graphique : arrêter ComfyUI
+(`video-ai\scripts\stop.ps1`) avant une séparation audio.
 
 ## Sécurité
 
