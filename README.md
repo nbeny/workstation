@@ -124,7 +124,7 @@ depuis `D:\Archive\KeePass\Database.kdbx` (disque conservé au reset).
 
 **Clonage des dépôts** : clone les repos de tes onglets Warp (listés dans
 `windows/repos.txt`) dans `Documents\GitHub\<repo>` via `gh repo clone`, s'ils sont
-absents. Nécessite `gh auth login` au préalable. **CoinRich et le projet RAT sont exclus.**
+absents. Nécessite `gh auth login` au préalable.
 
 **nvm** : côté Windows via winget (nvm-windows) ; côté Kali, le script officiel nvm
 est installé par `wsl/kali/setup.sh`.

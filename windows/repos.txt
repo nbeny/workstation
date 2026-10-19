@@ -1,6 +1,5 @@
 # Repos (onglets Warp) a cloner apres reset, via `gh repo clone`.
 # Un slug owner/repo par ligne. Clones dans %USERPROFILE%\Documents\GitHub\<repo>.
-# Exclus volontairement : CoinRich-* et le projet RAT (jamais clones).
 nbeny/UrbanConnct
 nbeny/urbanlink-sales
 nbeny/infra
