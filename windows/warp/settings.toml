@@ -115,6 +115,7 @@ override_blur_texture = true
 open_windows_at_custom_size = false
 override_opacity = 100
 zoom_level = 110
+backdrop = "acrylic"
 
 [appearance.text]
 notebook_font_size = 14.0
@@ -156,6 +157,7 @@ osc52_clipboard_access = "write_only"
 [terminal.input]
 input_box_type_setting = "universal"
 completions_open_while_typing = true
+alias_expansion_enabled = true
 
 [general]
 default_session_mode = "terminal"

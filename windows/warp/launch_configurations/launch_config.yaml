@@ -108,6 +108,27 @@ windows:
             - exec: pwsh -NoProfile -ExecutionPolicy Bypass -File .\video-ai\scripts\start.ps1
         color: blue
       - layout:
+          cwd: "C:\\Users\\nbeny\\Documents\\GitHub\\video-creator"
+          is_focused: true
+          pane_mode: terminal
+        color: blue
+      - layout:
+          cwd: "C:\\Users\\nbeny\\Documents\\GitHub\\audio-creator"
+          is_focused: true
+          pane_mode: terminal
+        color: blue
+      - layout:
           cwd: "C:\\Users\\nbeny\\Documents\\GitHub"
           is_focused: true
           pane_mode: terminal
+      # workstation : edition du depot (setup.ps1, configs, skills) et session Claude Code.
+      - title: workstation
+        layout:
+          split_direction: horizontal
+          panes:
+            - cwd: "C:\\Users\\nbeny\\Documents\\GitHub\\workstation"
+              pane_mode: terminal
+            - cwd: "C:\\Users\\nbeny\\Documents\\GitHub\\workstation"
+              is_focused: true
+              pane_mode: terminal
+        color: blue

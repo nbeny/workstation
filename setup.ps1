@@ -116,6 +116,7 @@ $WingetApps = [ordered]@{
     'DEVCOM.JetBrainsMonoNerdFont'  = 'JetBrainsMono Nerd Font'
     'Gyan.FFmpeg'                   = 'FFmpeg'
     'astral-sh.uv'                  = 'uv (venv video-ai)'
+    'yt-dlp.yt-dlp'                 = 'yt-dlp'
 }
 
 function Test-WingetInstalled {
